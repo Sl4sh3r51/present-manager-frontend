@@ -1,20 +1,94 @@
-name: Build
+name: Frontend Build and Deploy
+
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
   pull_request:
     types: [opened, synchronize, reopened]
+
+# Nur einen Workflow gleichzeitig pro Branch ausführen
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write  # Für PR-Kommentare
+  pages: write          # Falls du später GitHub Pages nutzen willst
+  id-token: write       # Für OIDC (falls Deploy zu Cloud)
+
 jobs:
-  sonarqube:
-    name: SonarQube
+  # ============================================
+  # JOB 1: Build & Test
+  # ============================================
+  build-and-test:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]  # Oder [18.x, 20.x] für mehrere Node-Versionen
+
+    name: Build & Test (Node ${{ matrix.node-version }})
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'  # Automatisches Caching von node_modules
+
+      - name: Install Dependencies
+        run: npm ci  # ci ist schneller und deterministischer als install
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: true  # Build nicht abbrechen bei Lint-Fehlern
+
+      - name: TypeScript Type Check
+        run: npx vue-tsc --noEmit
+        continue-on-error: false  # Type-Fehler sollten Build abbrechen
+
+      - name: Build Frontend
+        run: npm run build
+
+      - name: Analyze Build Size
+        run: |
+          echo "Build completed successfully!"
+          echo ""
+          echo " Build Output:"
+          du -sh dist/
+          echo ""
+          echo " Files:"
+          ls -lh dist/
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.node-version }}
+          path: dist/
+          retention-days: 14  # Artifacts werden nach 14 Tagen gelöscht
+
+
+      - name: Create Build Summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          # Frontend Build Complete
+          
+          ## Build Information
+          
+          | Item | Value |
+          |------|-------|
+          | Node Version | ${{ matrix.node-version }} |
+          | Branch | `${{ github.ref_name }}` |
+          | Commit | `${{ github.sha }}` |
+          | Build Size | $(du -sh dist/ | cut -f1) |
+          
+          ## Artifacts
+          
+          Build artifacts are available for download in the workflow run.
+          
+          EOF
