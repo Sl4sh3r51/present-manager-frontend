@@ -1,11 +1,17 @@
-// src/composables/useToast.js
+// src/composables/useToast.ts
 import { ref } from 'vue'
 
-const toasts = ref([])
+interface Toast {
+  id: number
+  message: string
+  type: string
+}
+
+const toasts = ref<Toast[]>([])
 let toastId = 0
 
 export function useToast() {
-  function showToast(message, type = 'success', duration = 3000) {
+  function showToast(message: string, type = 'success', duration = 3000) {
     const id = ++toastId
     toasts.value.push({ id, message, type })
     setTimeout(() => {
@@ -13,15 +19,15 @@ export function useToast() {
     }, duration)
   }
 
-  function success(message) {
+  function success(message: string) {
     showToast(message, 'success')
   }
 
-  function error(message) {
+  function error(message: string) {
     showToast(message, 'error')
   }
 
-  function info(message) {
+  function info(message: string) {
     showToast(message, 'info')
   }
 

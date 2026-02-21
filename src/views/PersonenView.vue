@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { personenApi } from '@/services/api'
 import { mockPersonen } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
+import type { Person } from '@/types'
 import PersonCard from '@/components/PersonCard.vue'
 import PersonModal from '@/components/PersonModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -12,7 +13,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 const router = useRouter()
 const { success, error: showError } = useToast()
 
-const personen = ref([])
+const personen = ref<Person[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
 const activeFilter = ref('Alle')
@@ -20,11 +21,11 @@ const filters = ['Alle', 'Ideen', 'Gekauft']
 
 // Modal State
 const showPersonModal = ref(false)
-const editingPerson = ref(null)
+const editingPerson = ref<Person | null>(null)
 
 // Delete Dialog State
 const showDeleteDialog = ref(false)
-const deletingPerson = ref(null)
+const deletingPerson = ref<Person | null>(null)
 
 // Filtered & Searched Persons
 const filteredPersonen = computed(() => {
@@ -55,7 +56,7 @@ async function loadPersonen() {
   try {
     const { data } = await personenApi.getAll()
     personen.value = data
-  } catch (e) {
+  } catch {
     console.warn('Backend nicht erreichbar, verwende Mock-Daten')
     personen.value = mockPersonen
   } finally {
@@ -68,17 +69,17 @@ function openCreateModal() {
   showPersonModal.value = true
 }
 
-function openEditModal(person) {
+function openEditModal(person: Person) {
   editingPerson.value = person
   showPersonModal.value = true
 }
 
-function openDeleteDialog(person) {
+function openDeleteDialog(person: Person) {
   deletingPerson.value = person
   showDeleteDialog.value = true
 }
 
-async function handleSavePerson(data) {
+async function handleSavePerson(data: Partial<Person>) {
   try {
     if (editingPerson.value) {
       await personenApi.update(editingPerson.value.id, data)
@@ -89,23 +90,23 @@ async function handleSavePerson(data) {
     }
     showPersonModal.value = false
     await loadPersonen()
-  } catch (e) {
+  } catch {
     showError('Vorgang fehlgeschlagen')
   }
 }
 
 async function handleDeletePerson() {
   try {
-    await personenApi.delete(deletingPerson.value.id)
-    success(`${deletingPerson.value.name} wurde gelöscht`)
+    await personenApi.delete(deletingPerson.value!.id)
+    success(`${deletingPerson.value!.name} wurde gelöscht`)
     showDeleteDialog.value = false
     await loadPersonen()
-  } catch (e) {
+  } catch {
     showError('Person konnte nicht gelöscht werden')
   }
 }
 
-function navigateToDetail(person) {
+function navigateToDetail(person: Person) {
   router.push(`/personen/${person.id}`)
 }
 </script>
@@ -194,7 +195,7 @@ function navigateToDetail(person) {
   <!-- Create/Edit Modal -->
   <PersonModal
     :show="showPersonModal"
-    :person="editingPerson"
+    :person="editingPerson ?? undefined"
     @save="handleSavePerson"
     @cancel="showPersonModal = false"
   />

@@ -3,12 +3,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { personenApi } from '@/services/api'
 import { mockPersonen } from '@/services/mockData'
-import { useToast } from '@/composables/useToast'
-
-const { error: showError } = useToast()
+import type { Person } from '@/types'
 
 const loading = ref(true)
-const uebersicht = ref([])
+const uebersicht = ref<Person[]>([])
 
 const stats = computed(() => ({
   personenGesamt: uebersicht.value.length,
@@ -21,7 +19,7 @@ onMounted(async () => {
   try {
     const { data } = await personenApi.getAll()
     uebersicht.value = data
-  } catch (e) {
+  } catch {
     console.warn('Backend nicht erreichbar, verwende Mock-Daten')
     uebersicht.value = mockPersonen
   } finally {
@@ -29,7 +27,7 @@ onMounted(async () => {
   }
 })
 
-function formattedDate(date) {
+function formattedDate(date: string) {
   if (!date) return '-'
   return new Date(date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
@@ -38,8 +36,8 @@ function drucken() {
   window.print()
 }
 
-const statusBadge = (status) => {
-  const map = {
+const statusBadge = (status: string) => {
+  const map: Record<string, { text: string; class: string; icon: string }> = {
     IDEE: { text: 'Idee', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: '' },
     GEPLANT: { text: 'Geplant', class: 'bg-blue-50 text-blue-700 border-blue-200', icon: '' },
     GEKAUFT: { text: 'Gekauft', class: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: '' },
@@ -48,12 +46,12 @@ const statusBadge = (status) => {
   return map[status] || { text: 'Keine Ideen', class: 'bg-gray-50 text-gray-400 border-gray-200', icon: '' }
 }
 
-const avatarColor = (name) => {
+const avatarColor = (name: string) => {
   const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-teal-500', 'bg-indigo-500']
   return colors[name?.charCodeAt(0) % colors.length || 0]
 }
 
-const initial = (name) => name?.charAt(0).toUpperCase() || '?'
+const initial = (name: string) => name?.charAt(0).toUpperCase() || '?'
 </script>
 
 <template>

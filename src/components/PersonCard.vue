@@ -12,7 +12,7 @@ const showMenu = ref(false)
 const initials = computed(() => {
   return props.person.name
     ?.split(' ')
-    .map(w => w[0])
+    .map((w: string) => w[0])
     .join('')
     .toUpperCase()
     .slice(0, 1) || '?'
@@ -29,10 +29,7 @@ const avatarColor = computed(() => {
 
 const tageHer = computed(() => {
   if (!props.person.geburtstag) return null
-  const today = new Date()
-  const gb = new Date(props.person.geburtstag)
-  const diff = Math.floor((today - gb) / (1000 * 60 * 60 * 24))
-  return diff
+  return Math.floor((new Date().getTime() - new Date(props.person.geburtstag).getTime()) / (1000 * 60 * 60 * 24))
 })
 
 const formattedDate = computed(() => {
@@ -51,18 +48,18 @@ const statusBadge = computed(() => {
   return { text: 'Keine Ideen', class: 'bg-gray-50 text-gray-500 border-gray-200', icon: '' }
 })
 
-function toggleMenu(e) {
+function toggleMenu(e: Event) {
   e.stopPropagation()
   showMenu.value = !showMenu.value
 }
 
-function handleEdit(e) {
+function handleEdit(e: Event) {
   e.stopPropagation()
   showMenu.value = false
   emit('edit', props.person)
 }
 
-function handleDelete(e) {
+function handleDelete(e: Event) {
   e.stopPropagation()
   showMenu.value = false
   emit('delete', props.person)
@@ -88,7 +85,12 @@ function handleDelete(e) {
         </svg>
       </button>
 
-      <Transition name="dropdown">
+      <Transition
+        enter-active-class="transition-all duration-150 ease-out"
+        leave-active-class="transition-all duration-100 ease-in"
+        enter-from-class="opacity-0 -translate-y-1 scale-[0.98]"
+        leave-to-class="opacity-0 -translate-y-1 scale-[0.98]"
+      >
         <div
           v-if="showMenu"
           class="absolute right-0 mt-1 w-40 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-10"
@@ -143,9 +145,3 @@ function handleDelete(e) {
   <!-- Click-away for menu -->
   <div v-if="showMenu" class="fixed inset-0 z-0" @click.stop="showMenu = false" />
 </template>
-
-<style scoped>
-.dropdown-enter-active { transition: all 0.15s ease-out; }
-.dropdown-leave-active { transition: all 0.1s ease-in; }
-.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-4px) scale(0.98); }
-</style>

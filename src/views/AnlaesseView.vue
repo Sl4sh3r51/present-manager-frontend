@@ -4,21 +4,22 @@ import { ref, computed, onMounted } from 'vue'
 import { anlaesseApi } from '@/services/api'
 import { mockAnlaesse } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
+import type { Anlass } from '@/types'
 import AnlassModal from '@/components/AnlassModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const { success, error: showError } = useToast()
 
-const anlaesse = ref([])
+const anlaesse = ref<Anlass[]>([])
 const loading = ref(true)
 
 // Modal State
 const showAnlassModal = ref(false)
-const editingAnlass = ref(null)
+const editingAnlass = ref<Anlass | null>(null)
 
 // Delete Dialog
 const showDeleteDialog = ref(false)
-const deletingAnlass = ref(null)
+const deletingAnlass = ref<Anlass | null>(null)
 
 const festeAnlaesse = computed(() => anlaesse.value.filter(a => a.fest))
 const benutzerdefinierteAnlaesse = computed(() => anlaesse.value.filter(a => !a.fest))
@@ -36,7 +37,7 @@ async function loadAnlaesse() {
   try {
     const { data } = await anlaesseApi.getAll()
     anlaesse.value = data
-  } catch (e) {
+  } catch {
     console.warn('Backend nicht erreichbar, verwende Mock-Daten')
     anlaesse.value = mockAnlaesse
   } finally {
@@ -49,17 +50,17 @@ function openCreateModal() {
   showAnlassModal.value = true
 }
 
-function openEditModal(anlass) {
+function openEditModal(anlass: Anlass) {
   editingAnlass.value = anlass
   showAnlassModal.value = true
 }
 
-function openDeleteDialog(anlass) {
+function openDeleteDialog(anlass: Anlass) {
   deletingAnlass.value = anlass
   showDeleteDialog.value = true
 }
 
-async function handleSaveAnlass(data) {
+async function handleSaveAnlass(data: Partial<Anlass>) {
   try {
     if (editingAnlass.value) {
       await anlaesseApi.update(editingAnlass.value.id, data)
@@ -70,18 +71,18 @@ async function handleSaveAnlass(data) {
     }
     showAnlassModal.value = false
     await loadAnlaesse()
-  } catch (e) {
+  } catch {
     showError('Vorgang fehlgeschlagen')
   }
 }
 
 async function handleDeleteAnlass() {
   try {
-    await anlaesseApi.delete(deletingAnlass.value.id)
-    success(`"${deletingAnlass.value.name}" wurde gelöscht`)
+    await anlaesseApi.delete(deletingAnlass.value!.id)
+    success(`"${deletingAnlass.value!.name}" wurde gelöscht`)
     showDeleteDialog.value = false
     await loadAnlaesse()
-  } catch (e) {
+  } catch {
     showError('Anlass konnte nicht gelöscht werden')
   }
 }
@@ -213,7 +214,7 @@ async function handleDeleteAnlass() {
   <!-- Create/Edit Modal -->
   <AnlassModal
     :show="showAnlassModal"
-    :anlass="editingAnlass"
+    :anlass="editingAnlass ?? undefined"
     @save="handleSaveAnlass"
     @cancel="showAnlassModal = false"
   />
