@@ -15,7 +15,7 @@ const navItems = [
   { name: 'Übersicht', path: '/uebersicht', icon: 'list' }
 ]
 
-const isActive = (path) => {
+const isActive = (path: string) => {
   if (path === '/') return route.path === '/'
   return route.path.startsWith(path)
 }
@@ -99,7 +99,12 @@ function toggleProfileMenu() {
             </button>
 
             <!-- Notifications Dropdown -->
-            <Transition name="dropdown">
+            <Transition
+        enter-active-class="transition-all duration-150 ease-out"
+        leave-active-class="transition-all duration-100 ease-in"
+        enter-from-class="opacity-0 -translate-y-1 scale-[0.98]"
+        leave-to-class="opacity-0 -translate-y-1 scale-[0.98]"
+      >
               <div
                 v-if="showNotifications"
                 class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden"
@@ -125,7 +130,12 @@ function toggleProfileMenu() {
               </svg>
             </button>
 
-            <Transition name="dropdown">
+            <Transition
+        enter-active-class="transition-all duration-150 ease-out"
+        leave-active-class="transition-all duration-100 ease-in"
+        enter-from-class="opacity-0 -translate-y-1 scale-[0.98]"
+        leave-to-class="opacity-0 -translate-y-1 scale-[0.98]"
+      >
               <div
                 v-if="showProfileMenu"
                 class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden"
@@ -165,9 +175,3 @@ function toggleProfileMenu() {
     @click="closeMenus"
   />
 </template>
-
-<style scoped>
-.dropdown-enter-active { transition: all 0.15s ease-out; }
-.dropdown-leave-active { transition: all 0.1s ease-in; }
-.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-4px) scale(0.98); }
-</style>

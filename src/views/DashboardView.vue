@@ -1,19 +1,18 @@
 <!-- src/views/DashboardView.vue -->
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { dashboardApi, personenApi } from '@/services/api'
 import { mockDashboardSummary } from '@/services/mockData'
 import PersonModal from '@/components/PersonModal.vue'
 import { useToast } from '@/composables/useToast'
+import type { DashboardSummary, Person } from '@/types'
 
-const router = useRouter()
 const { success, error: showError } = useToast()
 
 const loading = ref(true)
 const showPersonModal = ref(false)
 
-const summary = ref({
+const summary = ref<DashboardSummary>({
   naechsteGeburtstage: [],
   weihnachtsStatus: { ideen: 0, geplant: 0, gekauft: 0, verschenkt: 0 },
   offeneAufgaben: []
@@ -23,7 +22,7 @@ onMounted(async () => {
   try {
     const { data } = await dashboardApi.getSummary()
     summary.value = data
-  } catch (e) {
+  } catch {
     console.warn('Backend nicht erreichbar, verwende Mock-Daten')
     summary.value = mockDashboardSummary
   } finally {
@@ -31,19 +30,16 @@ onMounted(async () => {
   }
 })
 
-async function handleCreatePerson(data) {
+async function handleCreatePerson(data: Partial<Person>) {
   try {
     await personenApi.create(data)
     showPersonModal.value = false
     success('Person wurde erfolgreich angelegt')
-  } catch (e) {
+  } catch {
     showError('Person konnte nicht angelegt werden')
   }
 }
 
-function navigateToPersonen() {
-  router.push('/personen')
-}
 </script>
 
 <template>

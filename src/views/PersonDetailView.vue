@@ -5,20 +5,20 @@ import { useRoute, useRouter } from 'vue-router'
 import { personenApi, geschenkeApi, ideenApi, aufgabenApi } from '@/services/api'
 import { mockPersonen, mockIdeen, mockGeschenke, mockAufgaben } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
-import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import type { Person, Geschenk, GeschenkIdee, Aufgabe } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const { success, error: showError } = useToast()
 
-const person = ref(null)
-const ideen = ref([])
-const geschenke = ref([])
-const aufgaben = ref([])
+const person = ref<Person | null>(null)
+const ideen = ref<GeschenkIdee[]>([])
+const geschenke = ref<Geschenk[]>([])
+const aufgaben = ref<Aufgabe[]>([])
 const loading = ref(true)
 const neueAufgabe = ref('')
 
-const personId = computed(() => route.params.id)
+const personId = computed(() => route.params.id as string)
 
 const formattedGeburtstag = computed(() => {
   if (!person.value?.geburtstag) return ''
@@ -44,10 +44,10 @@ async function loadAll() {
     ideen.value = iRes.data
     geschenke.value = gRes.data
     aufgaben.value = aRes.data
-  } catch (e) {
+  } catch {
     console.warn('Backend nicht erreichbar, verwende Mock-Daten')
     const id = Number(personId.value)
-    person.value = mockPersonen.find(p => p.id === id) || mockPersonen[0]
+    person.value = (mockPersonen.find(p => p.id === id) || mockPersonen[0]) as Person
     ideen.value = mockIdeen[id] || []
     geschenke.value = mockGeschenke[id] || []
     aufgaben.value = mockAufgaben[id] || []
@@ -56,31 +56,31 @@ async function loadAll() {
   }
 }
 
-async function convertToGeschenk(idee) {
+async function convertToGeschenk(idee: GeschenkIdee) {
   try {
     await ideenApi.convertToGeschenk(personId.value, idee.id, {})
     success('Idee wurde als Geschenk übernommen')
     await loadAll()
-  } catch (e) {
+  } catch {
     showError('Konvertierung fehlgeschlagen')
   }
 }
 
-async function updateGeschenkStatus(geschenk, status) {
+async function updateGeschenkStatus(geschenk: Geschenk, status: string) {
   try {
     await geschenkeApi.updateStatus(personId.value, geschenk.id, status)
     geschenk.status = status
     success(`Status auf "${status}" gesetzt`)
-  } catch (e) {
+  } catch {
     showError('Status konnte nicht aktualisiert werden')
   }
 }
 
-async function toggleAufgabe(aufgabe) {
+async function toggleAufgabe(aufgabe: Aufgabe) {
   try {
     await aufgabenApi.toggle(personId.value, aufgabe.id)
     aufgabe.erledigt = !aufgabe.erledigt
-  } catch (e) {
+  } catch {
     aufgabe.erledigt = !aufgabe.erledigt
   }
 }
@@ -91,36 +91,36 @@ async function addAufgabe() {
     await aufgabenApi.create(personId.value, { titel: neueAufgabe.value.trim() })
     neueAufgabe.value = ''
     await loadAll()
-  } catch (e) {
+  } catch {
     showError('Aufgabe konnte nicht erstellt werden')
   }
 }
 
-async function deleteAufgabe(aufgabe) {
+async function deleteAufgabe(aufgabe: Aufgabe) {
   try {
     await aufgabenApi.delete(personId.value, aufgabe.id)
     aufgaben.value = aufgaben.value.filter(a => a.id !== aufgabe.id)
-  } catch (e) {
+  } catch {
     showError('Aufgabe konnte nicht gelöscht werden')
   }
 }
 
-async function deleteIdee(idee) {
+async function deleteIdee(idee: GeschenkIdee) {
   try {
     await ideenApi.delete(personId.value, idee.id)
     ideen.value = ideen.value.filter(i => i.id !== idee.id)
     success('Idee wurde gelöscht')
-  } catch (e) {
+  } catch {
     showError('Idee konnte nicht gelöscht werden')
   }
 }
 
-async function deleteGeschenk(geschenk) {
+async function deleteGeschenk(geschenk: Geschenk) {
   try {
     await geschenkeApi.delete(personId.value, geschenk.id)
     geschenke.value = geschenke.value.filter(g => g.id !== geschenk.id)
     success('Geschenk wurde gelöscht')
-  } catch (e) {
+  } catch {
     showError('Geschenk konnte nicht gelöscht werden')
   }
 }
@@ -129,8 +129,8 @@ const vergangeneGeschenke = computed(() => geschenke.value.filter(g => g.status 
 const geplanteGeschenke = computed(() => geschenke.value.filter(g => g.status !== 'VERSCHENKT'))
 
 const statusButtons = ['GEPLANT', 'GEKAUFT', 'VERSCHENKT']
-const statusLabels = { GEPLANT: 'Geplant', GEKAUFT: 'Gekauft', VERSCHENKT: 'Verschenkt' }
-const statusColors = {
+const statusLabels: Record<string, string> = { GEPLANT: 'Geplant', GEKAUFT: 'Gekauft', VERSCHENKT: 'Verschenkt' }
+const statusColors: Record<string, string> = {
   GEPLANT: 'bg-blue-600 text-white',
   GEKAUFT: 'bg-gray-100 text-gray-700',
   VERSCHENKT: 'bg-gray-100 text-gray-700'

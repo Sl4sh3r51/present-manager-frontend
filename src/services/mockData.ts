@@ -1,4 +1,4 @@
-// src/services/mockData.js
+// src/services/mockData.ts
 // Realistische Testdaten als Fallback wenn das Backend nicht erreichbar ist
 
 export const mockPersonen = [
@@ -76,7 +76,7 @@ export const mockDashboardSummary = {
   ]
 }
 
-export const mockIdeen = {
+export const mockIdeen: Record<number, Array<{ id: number; titel: string; beschreibung: string; link: string | null }>> = {
   1: [
     { id: 11, titel: 'Spa-Gutschein', beschreibung: 'Wellness-Tag im Hotel', link: null },
     { id: 12, titel: 'Krimibuch-Abo', beschreibung: '3 Monate Krimi-Buchbox', link: null }
@@ -91,7 +91,7 @@ export const mockIdeen = {
   4: []
 }
 
-export const mockGeschenke = {
+export const mockGeschenke: Record<number, Array<{ id: number; titel: string; beschreibung: string; anlassName: string; status: string; datum: string | null }>> = {
   1: [
     { id: 101, titel: 'Kochbuch "Italien"', beschreibung: 'Authentische italienische Rezepte', anlassName: 'Geburtstag', status: 'GEKAUFT', datum: '2025-02-14' },
     { id: 102, titel: 'Yoga-Matte', beschreibung: 'Rutschfest, extra dick', anlassName: 'Weihnachten', status: 'VERSCHENKT', datum: '2024-12-24' }
@@ -105,7 +105,7 @@ export const mockGeschenke = {
   4: []
 }
 
-export const mockAufgaben = {
+export const mockAufgaben: Record<number, Array<{ id: number; titel: string; erledigt: boolean }>> = {
   1: [
     { id: 1, titel: 'Geschenk einpacken', erledigt: false },
     { id: 2, titel: 'Karte schreiben', erledigt: true }

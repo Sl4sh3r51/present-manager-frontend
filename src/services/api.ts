@@ -1,4 +1,4 @@
-// src/services/api.js
+// src/services/api.ts
 import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
@@ -40,16 +40,16 @@ export const personenApi = {
   getAll() {
     return apiClient.get('/personen')
   },
-  getById(id) {
+  getById(id: number | string) {
     return apiClient.get(`/personen/${id}`)
   },
-  create(person) {
+  create(person: Record<string, unknown>) {
     return apiClient.post('/personen', person)
   },
-  update(id, person) {
+  update(id: number | string, person: Record<string, unknown>) {
     return apiClient.put(`/personen/${id}`, person)
   },
-  delete(id) {
+  delete(id: number | string) {
     return apiClient.delete(`/personen/${id}`)
   }
 }
@@ -59,70 +59,70 @@ export const anlaesseApi = {
   getAll() {
     return apiClient.get('/anlaesse')
   },
-  getById(id) {
+  getById(id: number | string) {
     return apiClient.get(`/anlaesse/${id}`)
   },
-  create(anlass) {
+  create(anlass: Record<string, unknown>) {
     return apiClient.post('/anlaesse', anlass)
   },
-  update(id, anlass) {
+  update(id: number | string, anlass: Record<string, unknown>) {
     return apiClient.put(`/anlaesse/${id}`, anlass)
   },
-  delete(id) {
+  delete(id: number | string) {
     return apiClient.delete(`/anlaesse/${id}`)
   }
 }
 
 // ==================== Geschenke API ====================
 export const geschenkeApi = {
-  getAllByPerson(personId) {
+  getAllByPerson(personId: number | string) {
     return apiClient.get(`/personen/${personId}/geschenke`)
   },
-  create(personId, geschenk) {
+  create(personId: number | string, geschenk: Record<string, unknown>) {
     return apiClient.post(`/personen/${personId}/geschenke`, geschenk)
   },
-  update(personId, geschenkId, geschenk) {
+  update(personId: number | string, geschenkId: number | string, geschenk: Record<string, unknown>) {
     return apiClient.put(`/personen/${personId}/geschenke/${geschenkId}`, geschenk)
   },
-  delete(personId, geschenkId) {
+  delete(personId: number | string, geschenkId: number | string) {
     return apiClient.delete(`/personen/${personId}/geschenke/${geschenkId}`)
   },
-  updateStatus(personId, geschenkId, status) {
+  updateStatus(personId: number | string, geschenkId: number | string, status: string) {
     return apiClient.patch(`/personen/${personId}/geschenke/${geschenkId}/status`, { status })
   }
 }
 
 // ==================== Geschenkideen API ====================
 export const ideenApi = {
-  getAllByPerson(personId) {
+  getAllByPerson(personId: number | string) {
     return apiClient.get(`/personen/${personId}/ideen`)
   },
-  create(personId, idee) {
+  create(personId: number | string, idee: Record<string, unknown>) {
     return apiClient.post(`/personen/${personId}/ideen`, idee)
   },
-  update(personId, ideeId, idee) {
+  update(personId: number | string, ideeId: number | string, idee: Record<string, unknown>) {
     return apiClient.put(`/personen/${personId}/ideen/${ideeId}`, idee)
   },
-  delete(personId, ideeId) {
+  delete(personId: number | string, ideeId: number | string) {
     return apiClient.delete(`/personen/${personId}/ideen/${ideeId}`)
   },
-  convertToGeschenk(personId, ideeId, geschenkData) {
+  convertToGeschenk(personId: number | string, ideeId: number | string, geschenkData: Record<string, unknown>) {
     return apiClient.post(`/personen/${personId}/ideen/${ideeId}/convert`, geschenkData)
   }
 }
 
 // ==================== Aufgaben API ====================
 export const aufgabenApi = {
-  getAllByPerson(personId) {
+  getAllByPerson(personId: number | string) {
     return apiClient.get(`/personen/${personId}/aufgaben`)
   },
-  create(personId, aufgabe) {
+  create(personId: number | string, aufgabe: Record<string, unknown>) {
     return apiClient.post(`/personen/${personId}/aufgaben`, aufgabe)
   },
-  toggle(personId, aufgabeId) {
+  toggle(personId: number | string, aufgabeId: number | string) {
     return apiClient.patch(`/personen/${personId}/aufgaben/${aufgabeId}/toggle`)
   },
-  delete(personId, aufgabeId) {
+  delete(personId: number | string, aufgabeId: number | string) {
     return apiClient.delete(`/personen/${personId}/aufgaben/${aufgabeId}`)
   }
 }
