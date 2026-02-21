@@ -1,16 +1,10 @@
 <!-- src/views/DashboardView.vue -->
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { dashboardApi, personenApi } from '@/services/api'
 import { mockDashboardSummary } from '@/services/mockData'
-import PersonModal from '@/components/PersonModal.vue'
-import { useToast } from '@/composables/useToast'
-import type { DashboardSummary, Person } from '@/types'
-
-const { success, error: showError } = useToast()
+import type { DashboardSummary } from '@/types'
 
 const loading = ref(true)
-const showPersonModal = ref(false)
 
 const summary = ref<DashboardSummary>({
   naechsteGeburtstage: [],
@@ -18,27 +12,10 @@ const summary = ref<DashboardSummary>({
   offeneAufgaben: []
 })
 
-onMounted(async () => {
-  try {
-    const { data } = await dashboardApi.getSummary()
-    summary.value = data
-  } catch {
-    console.warn('Backend nicht erreichbar, verwende Mock-Daten')
-    summary.value = mockDashboardSummary
-  } finally {
-    loading.value = false
-  }
+onMounted(() => {
+  summary.value = mockDashboardSummary
+  loading.value = false
 })
-
-async function handleCreatePerson(data: Partial<Person>) {
-  try {
-    await personenApi.create(data)
-    showPersonModal.value = false
-    success('Person wurde erfolgreich angelegt')
-  } catch {
-    showError('Person konnte nicht angelegt werden')
-  }
-}
 
 </script>
 
@@ -162,15 +139,15 @@ async function handleCreatePerson(data: Partial<Person>) {
         <h3 class="font-semibold text-lg mb-1">Schnellaktionen</h3>
         <p class="text-blue-100 text-sm mb-4">Füge neue Personen oder Geschenkideen hinzu</p>
         <div class="flex flex-wrap gap-3">
-          <button
-            @click="showPersonModal = true"
+          <router-link
+            to="/personen"
             class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-blue-700 text-sm font-medium rounded-xl hover:bg-blue-50 transition-colors"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
             Person hinzufügen
-          </button>
+          </router-link>
           <button
             class="inline-flex items-center gap-2 px-5 py-2.5 bg-white/15 text-white border border-white/30 text-sm font-medium rounded-xl hover:bg-white/25 transition-colors"
           >
@@ -184,9 +161,4 @@ async function handleCreatePerson(data: Partial<Person>) {
     </template>
   </div>
 
-  <PersonModal
-    :show="showPersonModal"
-    @save="handleCreatePerson"
-    @cancel="showPersonModal = false"
-  />
 </template>

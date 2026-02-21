@@ -2,14 +2,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { personenApi, geschenkeApi, ideenApi, aufgabenApi } from '@/services/api'
 import { mockPersonen, mockIdeen, mockGeschenke, mockAufgaben } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
 import type { Person, Geschenk, GeschenkIdee, Aufgabe } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
-const { success, error: showError } = useToast()
+const { success } = useToast()
+
+let nextAufgabeId = 100
 
 const person = ref<Person | null>(null)
 const ideen = ref<GeschenkIdee[]>([])
@@ -27,102 +28,60 @@ const formattedGeburtstag = computed(() => {
   })
 })
 
-onMounted(async () => {
-  await loadAll()
+onMounted(() => {
+  const id = Number(personId.value)
+  person.value = (mockPersonen.find(p => p.id === id) || mockPersonen[0]) as Person
+  ideen.value = [...(mockIdeen[id] || [])]
+  geschenke.value = [...(mockGeschenke[id] || [])]
+  aufgaben.value = [...(mockAufgaben[id] || [])]
+  loading.value = false
 })
 
-async function loadAll() {
-  loading.value = true
-  try {
-    const [pRes, iRes, gRes, aRes] = await Promise.all([
-      personenApi.getById(personId.value),
-      ideenApi.getAllByPerson(personId.value),
-      geschenkeApi.getAllByPerson(personId.value),
-      aufgabenApi.getAllByPerson(personId.value)
-    ])
-    person.value = pRes.data
-    ideen.value = iRes.data
-    geschenke.value = gRes.data
-    aufgaben.value = aRes.data
-  } catch {
-    console.warn('Backend nicht erreichbar, verwende Mock-Daten')
-    const id = Number(personId.value)
-    person.value = (mockPersonen.find(p => p.id === id) || mockPersonen[0]) as Person
-    ideen.value = mockIdeen[id] || []
-    geschenke.value = mockGeschenke[id] || []
-    aufgaben.value = mockAufgaben[id] || []
-  } finally {
-    loading.value = false
+function convertToGeschenk(idee: GeschenkIdee) {
+  const newGeschenk: Geschenk = {
+    id: Date.now(),
+    titel: idee.titel,
+    beschreibung: idee.beschreibung,
+    anlassName: '',
+    status: 'GEPLANT',
+    datum: null
   }
+  geschenke.value.push(newGeschenk)
+  ideen.value = ideen.value.filter(i => i.id !== idee.id)
+  success('Idee wurde als Geschenk übernommen')
 }
 
-async function convertToGeschenk(idee: GeschenkIdee) {
-  try {
-    await ideenApi.convertToGeschenk(personId.value, idee.id, {})
-    success('Idee wurde als Geschenk übernommen')
-    await loadAll()
-  } catch {
-    showError('Konvertierung fehlgeschlagen')
-  }
+function updateGeschenkStatus(geschenk: Geschenk, status: string) {
+  geschenk.status = status
+  success(`Status auf "${status}" gesetzt`)
 }
 
-async function updateGeschenkStatus(geschenk: Geschenk, status: string) {
-  try {
-    await geschenkeApi.updateStatus(personId.value, geschenk.id, status)
-    geschenk.status = status
-    success(`Status auf "${status}" gesetzt`)
-  } catch {
-    showError('Status konnte nicht aktualisiert werden')
-  }
+function toggleAufgabe(aufgabe: Aufgabe) {
+  aufgabe.erledigt = !aufgabe.erledigt
 }
 
-async function toggleAufgabe(aufgabe: Aufgabe) {
-  try {
-    await aufgabenApi.toggle(personId.value, aufgabe.id)
-    aufgabe.erledigt = !aufgabe.erledigt
-  } catch {
-    aufgabe.erledigt = !aufgabe.erledigt
-  }
-}
-
-async function addAufgabe() {
+function addAufgabe() {
   if (!neueAufgabe.value.trim()) return
-  try {
-    await aufgabenApi.create(personId.value, { titel: neueAufgabe.value.trim() })
-    neueAufgabe.value = ''
-    await loadAll()
-  } catch {
-    showError('Aufgabe konnte nicht erstellt werden')
-  }
+  aufgaben.value.push({
+    id: nextAufgabeId++,
+    titel: neueAufgabe.value.trim(),
+    erledigt: false
+  })
+  neueAufgabe.value = ''
 }
 
-async function deleteAufgabe(aufgabe: Aufgabe) {
-  try {
-    await aufgabenApi.delete(personId.value, aufgabe.id)
-    aufgaben.value = aufgaben.value.filter(a => a.id !== aufgabe.id)
-  } catch {
-    showError('Aufgabe konnte nicht gelöscht werden')
-  }
+function deleteAufgabe(aufgabe: Aufgabe) {
+  aufgaben.value = aufgaben.value.filter(a => a.id !== aufgabe.id)
 }
 
-async function deleteIdee(idee: GeschenkIdee) {
-  try {
-    await ideenApi.delete(personId.value, idee.id)
-    ideen.value = ideen.value.filter(i => i.id !== idee.id)
-    success('Idee wurde gelöscht')
-  } catch {
-    showError('Idee konnte nicht gelöscht werden')
-  }
+function deleteIdee(idee: GeschenkIdee) {
+  ideen.value = ideen.value.filter(i => i.id !== idee.id)
+  success('Idee wurde gelöscht')
 }
 
-async function deleteGeschenk(geschenk: Geschenk) {
-  try {
-    await geschenkeApi.delete(personId.value, geschenk.id)
-    geschenke.value = geschenke.value.filter(g => g.id !== geschenk.id)
-    success('Geschenk wurde gelöscht')
-  } catch {
-    showError('Geschenk konnte nicht gelöscht werden')
-  }
+function deleteGeschenk(geschenk: Geschenk) {
+  geschenke.value = geschenke.value.filter(g => g.id !== geschenk.id)
+  success('Geschenk wurde gelöscht')
 }
 
 const vergangeneGeschenke = computed(() => geschenke.value.filter(g => g.status === 'VERSCHENKT'))

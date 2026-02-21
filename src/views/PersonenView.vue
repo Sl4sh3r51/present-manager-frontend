@@ -2,7 +2,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { personenApi } from '@/services/api'
 import { mockPersonen } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
 import type { Person } from '@/types'
@@ -11,7 +10,9 @@ import PersonModal from '@/components/PersonModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const router = useRouter()
-const { success, error: showError } = useToast()
+const { success } = useToast()
+
+let nextId = 100
 
 const personen = ref<Person[]>([])
 const loading = ref(true)
@@ -47,22 +48,10 @@ const filteredPersonen = computed(() => {
   return result
 })
 
-onMounted(async () => {
-  await loadPersonen()
+onMounted(() => {
+  personen.value = [...mockPersonen] as Person[]
+  loading.value = false
 })
-
-async function loadPersonen() {
-  loading.value = true
-  try {
-    const { data } = await personenApi.getAll()
-    personen.value = data
-  } catch {
-    console.warn('Backend nicht erreichbar, verwende Mock-Daten')
-    personen.value = mockPersonen
-  } finally {
-    loading.value = false
-  }
-}
 
 function openCreateModal() {
   editingPerson.value = null
@@ -79,31 +68,31 @@ function openDeleteDialog(person: Person) {
   showDeleteDialog.value = true
 }
 
-async function handleSavePerson(data: Partial<Person>) {
-  try {
-    if (editingPerson.value) {
-      await personenApi.update(editingPerson.value.id, data)
-      success('Person wurde aktualisiert')
-    } else {
-      await personenApi.create(data)
-      success('Person wurde erfolgreich angelegt')
+function handleSavePerson(data: Partial<Person>) {
+  if (editingPerson.value) {
+    Object.assign(editingPerson.value, data)
+    success('Person wurde aktualisiert')
+  } else {
+    const newPerson: Person = {
+      id: nextId++,
+      name: data.name || '',
+      geburtstag: data.geburtstag || '',
+      interessen: data.interessen || [],
+      notizen: data.notizen || '',
+      hatIdeen: false,
+      hatGekauft: false,
+      geschenke: []
     }
-    showPersonModal.value = false
-    await loadPersonen()
-  } catch {
-    showError('Vorgang fehlgeschlagen')
+    personen.value.push(newPerson)
+    success('Person wurde erfolgreich angelegt')
   }
+  showPersonModal.value = false
 }
 
-async function handleDeletePerson() {
-  try {
-    await personenApi.delete(deletingPerson.value!.id)
-    success(`${deletingPerson.value!.name} wurde gelöscht`)
-    showDeleteDialog.value = false
-    await loadPersonen()
-  } catch {
-    showError('Person konnte nicht gelöscht werden')
-  }
+function handleDeletePerson() {
+  personen.value = personen.value.filter(p => p.id !== deletingPerson.value!.id)
+  success(`${deletingPerson.value!.name} wurde gelöscht`)
+  showDeleteDialog.value = false
 }
 
 function navigateToDetail(person: Person) {
