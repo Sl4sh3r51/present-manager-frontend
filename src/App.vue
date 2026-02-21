@@ -1,5 +1,5 @@
 <!-- src/App.vue -->
-<script setup>
+<script setup lang="ts">
 import AppNavbar from '@/components/AppNavbar.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
 </script>

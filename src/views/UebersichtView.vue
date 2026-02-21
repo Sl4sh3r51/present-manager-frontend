@@ -1,5 +1,5 @@
 <!-- src/views/UebersichtView.vue -->
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { personenApi } from '@/services/api'
 import { mockPersonen } from '@/services/mockData'

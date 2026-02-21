@@ -1,5 +1,5 @@
 <!-- src/views/PersonDetailView.vue -->
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { personenApi, geschenkeApi, ideenApi, aufgabenApi } from '@/services/api'

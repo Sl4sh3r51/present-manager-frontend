@@ -1,5 +1,5 @@
 <!-- src/components/ConfirmDialog.vue -->
-<script setup>
+<script setup lang="ts">
 defineProps({
   show: { type: Boolean, default: false },
   title: { type: String, default: 'Bestätigung' },

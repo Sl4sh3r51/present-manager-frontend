@@ -1,5 +1,5 @@
 <!-- src/views/PersonenView.vue -->
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { personenApi } from '@/services/api'

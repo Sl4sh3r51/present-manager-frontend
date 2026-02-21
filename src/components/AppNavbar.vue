@@ -1,10 +1,9 @@
 <!-- src/components/AppNavbar.vue -->
-<script setup>
-import { ref, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const router = useRouter()
 
 const showNotifications = ref(false)
 const showProfileMenu = ref(false)

@@ -1,5 +1,5 @@
 <!-- src/views/AnlaesseView.vue -->
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { anlaesseApi } from '@/services/api'
 import { mockAnlaesse } from '@/services/mockData'

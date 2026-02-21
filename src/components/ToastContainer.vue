@@ -1,5 +1,5 @@
 <!-- src/components/ToastContainer.vue -->
-<script setup>
+<script setup lang="ts">
 import { useToast } from '@/composables/useToast'
 
 const { toasts } = useToast()
