@@ -1,5 +1,5 @@
 <!-- src/components/PersonModal.vue -->
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 
 const props = defineProps({

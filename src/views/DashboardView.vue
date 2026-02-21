@@ -1,5 +1,5 @@
 <!-- src/views/DashboardView.vue -->
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { dashboardApi, personenApi } from '@/services/api'
