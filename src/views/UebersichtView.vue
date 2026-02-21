@@ -1,7 +1,6 @@
 <!-- src/views/UebersichtView.vue -->
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { personenApi } from '@/services/api'
 import { mockPersonen } from '@/services/mockData'
 import type { Person } from '@/types'
 
@@ -15,16 +14,9 @@ const stats = computed(() => ({
   gekauft: uebersicht.value.filter(p => p.geschenke?.some(g => g.status === 'GEKAUFT')).length
 }))
 
-onMounted(async () => {
-  try {
-    const { data } = await personenApi.getAll()
-    uebersicht.value = data
-  } catch {
-    console.warn('Backend nicht erreichbar, verwende Mock-Daten')
-    uebersicht.value = mockPersonen
-  } finally {
-    loading.value = false
-  }
+onMounted(() => {
+  uebersicht.value = [...mockPersonen] as Person[]
+  loading.value = false
 })
 
 function formattedDate(date: string) {
