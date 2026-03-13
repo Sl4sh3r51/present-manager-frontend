@@ -1,12 +1,24 @@
+export type PersonStatus = 'AKTIV' | 'ARCHIVIERT' | 'INAKTIV'
+export type OccasionType = 'FEST' | 'BENUTZERDEFINIERT'
+export type GiftSource = 'manual' | 'ai' | 'shared'
+
 export interface Person {
   id: number
   name: string
   geburtstag: string
-  interessen: string[]
+  status: PersonStatus
   notizen: string
   hatIdeen: boolean
   hatGekauft: boolean
   geschenke: Geschenk[]
+}
+
+export interface Interest {
+  id: string
+  personId: string
+  name: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface Geschenk {
@@ -14,9 +26,12 @@ export interface Geschenk {
   titel: string
   beschreibung: string
   anlassName: string
-  status: string
+  status: 'GEPLANT' | 'GEKAUFT' | 'VERSCHENKT'
   datum: string | null
-  typ?: string
+  imageUrl?: string
+  giftIdeaId?: number
+  purchaseDate?: string
+  givenDate?: string
 }
 
 export interface GeschenkIdee {
@@ -24,6 +39,10 @@ export interface GeschenkIdee {
   titel: string
   beschreibung: string
   link: string | null
+  notizen: string | null
+  imageUrl?: string
+  occasionId?: number
+  source: GiftSource
 }
 
 export interface Aufgabe {
@@ -35,7 +54,10 @@ export interface Aufgabe {
 export interface Anlass {
   id: number
   name: string
-  fest: boolean
+  type: OccasionType
+  recurring: boolean
+  fixedMonth?: number | null
+  fixedDay?: number | null
 }
 
 export interface DashboardSummary {

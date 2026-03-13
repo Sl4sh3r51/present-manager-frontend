@@ -1,10 +1,11 @@
 <!-- src/components/PersonModal.vue -->
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import type { PersonStatus } from '@/types'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  person: { type: Object, default: null } // null = create, object = edit
+  person: { type: Object, default: null }
 })
 
 const emit = defineEmits(['save', 'cancel'])
@@ -13,8 +14,15 @@ const form = ref({
   name: '',
   geburtstag: '',
   interessen: '',
-  notizen: ''
+  notizen: '',
+  status: 'AKTIV' as PersonStatus
 })
+
+const statusOptions: { value: PersonStatus; label: string }[] = [
+  { value: 'AKTIV', label: 'Aktiv' },
+  { value: 'ARCHIVIERT', label: 'Archiviert' },
+  { value: 'INAKTIV', label: 'Inaktiv' }
+]
 
 const isEdit = computed(() => props.person !== null)
 const title = computed(() => isEdit.value ? 'Person bearbeiten' : 'Person hinzufügen')
@@ -25,11 +33,12 @@ watch(() => props.show, (newVal) => {
     form.value = {
       name: props.person.name || '',
       geburtstag: props.person.geburtstag || '',
-      interessen: props.person.interessen?.join(', ') || '',
-      notizen: props.person.notizen || ''
+      interessen: props.person.interessen || '',
+      notizen: props.person.notizen || '',
+      status: props.person.status || 'AKTIV'
     }
   } else if (newVal) {
-    form.value = { name: '', geburtstag: '', interessen: '', notizen: '' }
+    form.value = { name: '', geburtstag: '', interessen: '', notizen: '', status: 'AKTIV' }
   }
 })
 
@@ -40,7 +49,10 @@ const isValid = computed(() => {
 function handleSubmit() {
   if (!isValid.value) return
   const data = {
-    ...form.value,
+    name: form.value.name,
+    geburtstag: form.value.geburtstag,
+    notizen: form.value.notizen,
+    status: form.value.status,
     interessen: form.value.interessen
       .split(',')
       .map(s => s.trim())
@@ -108,6 +120,19 @@ function handleSubmit() {
                     required
                   />
                 </div>
+              </div>
+
+              <!-- Status -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+                <select
+                  v-model="form.status"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white"
+                >
+                  <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </select>
               </div>
 
               <!-- Interessen -->

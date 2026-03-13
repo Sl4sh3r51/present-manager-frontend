@@ -2,9 +2,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { mockPersonen, mockIdeen, mockGeschenke, mockAufgaben } from '@/services/mockData'
+import { mockPersonen, mockIdeen, mockGeschenke, mockAufgaben, mockAnlaesse, mockInterests } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
-import type { Person, Geschenk, GeschenkIdee, Aufgabe } from '@/types'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import GeschenkIdeeModal from '@/components/GeschenkIdeeModal.vue'
+import GeschenkUebernehmenModal from '@/components/GeschenkUebernehmenModal.vue'
+import type { Person, Geschenk, GeschenkIdee, Aufgabe, Anlass, Interest } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,9 +16,11 @@ const { success } = useToast()
 let nextAufgabeId = 100
 
 const person = ref<Person | null>(null)
+const interests = ref<Interest[]>([])
 const ideen = ref<GeschenkIdee[]>([])
 const geschenke = ref<Geschenk[]>([])
 const aufgaben = ref<Aufgabe[]>([])
+const anlaesse = ref<Anlass[]>([])
 const loading = ref(true)
 const neueAufgabe = ref('')
 
@@ -28,34 +33,138 @@ const formattedGeburtstag = computed(() => {
   })
 })
 
-onMounted(() => {
-  const id = Number(personId.value)
-  person.value = (mockPersonen.find(p => p.id === id) || mockPersonen[0]) as Person
-  ideen.value = [...(mockIdeen[id] || [])]
-  geschenke.value = [...(mockGeschenke[id] || [])]
-  aufgaben.value = [...(mockAufgaben[id] || [])]
-  loading.value = false
-})
+const personInterests = computed(() => interests.value.filter(i => i.personId === personId.value))
 
-function convertToGeschenk(idee: GeschenkIdee) {
+// --- Idee Modal State ---
+const showIdeeModal = ref(false)
+const editingIdee = ref<GeschenkIdee | null>(null)
+
+function openAddIdee() {
+  console.log('[DEBUG] openAddIdee called')
+  editingIdee.value = null
+  showIdeeModal.value = true
+}
+
+function openEditIdee(idee: GeschenkIdee) {
+  console.log('[DEBUG] openEditIdee called', idee.id, idee.titel)
+  editingIdee.value = { ...idee }
+  showIdeeModal.value = true
+}
+
+function handleSaveIdee(data: { titel: string; beschreibung: string; link: string | null; notizen: string | null; imageUrl?: string; occasionId?: number }) {
+  if (editingIdee.value) {
+    ideen.value = ideen.value.map(i =>
+      i.id === editingIdee.value!.id
+        ? { ...i, titel: data.titel, beschreibung: data.beschreibung, link: data.link, notizen: data.notizen, imageUrl: data.imageUrl || '', occasionId: data.occasionId }
+        : i
+    )
+    success('Geschenkidee wurde aktualisiert')
+  } else {
+    const newIdee: GeschenkIdee = {
+      id: Date.now(),
+      titel: data.titel,
+      beschreibung: data.beschreibung,
+      link: data.link,
+      notizen: data.notizen,
+      imageUrl: data.imageUrl || '',
+      occasionId: data.occasionId,
+      source: 'manual'
+    }
+    ideen.value = [...ideen.value, newIdee]
+    success('Geschenkidee wurde hinzugefügt')
+  }
+  showIdeeModal.value = false
+  editingIdee.value = null
+}
+
+// --- Delete Idee Confirm ---
+const showDeleteIdeeConfirm = ref(false)
+const deletingIdeeId = ref<number | null>(null)
+
+function openDeleteIdee(idee: GeschenkIdee) {
+  console.log('[DEBUG] openDeleteIdee called', idee.id, idee.titel)
+  deletingIdeeId.value = idee.id
+  showDeleteIdeeConfirm.value = true
+}
+
+function confirmDeleteIdee() {
+  if (deletingIdeeId.value !== null) {
+    ideen.value = ideen.value.filter(i => i.id !== deletingIdeeId.value)
+    success('Geschenkidee wurde gelöscht')
+  }
+  showDeleteIdeeConfirm.value = false
+  deletingIdeeId.value = null
+}
+
+// --- Übernehmen Modal State ---
+const showUebernehmenModal = ref(false)
+const uebernehmenIdee = ref<GeschenkIdee | null>(null)
+
+function openUebernehmen(idee: GeschenkIdee) {
+  console.log('[DEBUG] openUebernehmen called', idee.id, idee.titel)
+  uebernehmenIdee.value = { ...idee }
+  showUebernehmenModal.value = true
+}
+
+function handleUebernehmen(data: { titel: string; beschreibung: string; anlassName: string; datum: string | null; status: string }) {
+  const now = new Date().toISOString().split('T')[0]
   const newGeschenk: Geschenk = {
     id: Date.now(),
-    titel: idee.titel,
-    beschreibung: idee.beschreibung,
-    anlassName: '',
-    status: 'GEPLANT',
-    datum: null
+    titel: data.titel,
+    beschreibung: data.beschreibung,
+    anlassName: data.anlassName,
+    status: data.status as Geschenk['status'],
+    datum: data.datum,
+    imageUrl: uebernehmenIdee.value?.imageUrl || '',
+    giftIdeaId: uebernehmenIdee.value?.id,
+    purchaseDate: data.status === 'GEKAUFT' ? now : undefined,
+    givenDate: data.status === 'VERSCHENKT' ? now : undefined
   }
-  geschenke.value.push(newGeschenk)
-  ideen.value = ideen.value.filter(i => i.id !== idee.id)
+  geschenke.value = [...geschenke.value, newGeschenk]
+  if (uebernehmenIdee.value) {
+    ideen.value = ideen.value.filter(i => i.id !== uebernehmenIdee.value!.id)
+  }
   success('Idee wurde als Geschenk übernommen')
+  showUebernehmenModal.value = false
+  uebernehmenIdee.value = null
 }
 
-function updateGeschenkStatus(geschenk: Geschenk, status: string) {
-  geschenk.status = status
-  success(`Status auf "${status}" gesetzt`)
+// --- Delete Geschenk Confirm ---
+const showDeleteGeschenkConfirm = ref(false)
+const deletingGeschenkId = ref<number | null>(null)
+
+function openDeleteGeschenk(geschenkId: number) {
+  console.log('[DEBUG] openDeleteGeschenk called', geschenkId)
+  deletingGeschenkId.value = geschenkId
+  showDeleteGeschenkConfirm.value = true
 }
 
+function confirmDeleteGeschenk() {
+  if (deletingGeschenkId.value !== null) {
+    geschenke.value = geschenke.value.filter(g => g.id !== deletingGeschenkId.value)
+    success('Geschenk wurde gelöscht')
+  }
+  showDeleteGeschenkConfirm.value = false
+  deletingGeschenkId.value = null
+}
+
+// --- Status ---
+function updateGeschenkStatus(geschenkId: number, newStatus: Geschenk['status']) {
+  console.log('[DEBUG] updateGeschenkStatus called', geschenkId, newStatus)
+  const now = new Date().toISOString().split('T')[0]
+  geschenke.value = geschenke.value.map(g => {
+    if (g.id !== geschenkId) return g
+    return {
+      ...g,
+      status: newStatus,
+      purchaseDate: newStatus === 'GEKAUFT' ? now : g.purchaseDate,
+      givenDate: newStatus === 'VERSCHENKT' ? now : g.givenDate
+    }
+  })
+  success(`Status auf "${statusLabels[newStatus]}" gesetzt`)
+}
+
+// --- Aufgaben ---
 function toggleAufgabe(aufgabe: Aufgabe) {
   aufgabe.erledigt = !aufgabe.erledigt
 }
@@ -74,31 +183,28 @@ function deleteAufgabe(aufgabe: Aufgabe) {
   aufgaben.value = aufgaben.value.filter(a => a.id !== aufgabe.id)
 }
 
-function deleteIdee(idee: GeschenkIdee) {
-  ideen.value = ideen.value.filter(i => i.id !== idee.id)
-  success('Idee wurde gelöscht')
-}
-
-function deleteGeschenk(geschenk: Geschenk) {
-  geschenke.value = geschenke.value.filter(g => g.id !== geschenk.id)
-  success('Geschenk wurde gelöscht')
-}
-
+// --- Computed ---
 const vergangeneGeschenke = computed(() => geschenke.value.filter(g => g.status === 'VERSCHENKT'))
 const geplanteGeschenke = computed(() => geschenke.value.filter(g => g.status !== 'VERSCHENKT'))
 
-const statusButtons = ['GEPLANT', 'GEKAUFT', 'VERSCHENKT']
+const statusButtons: Geschenk['status'][] = ['GEPLANT', 'GEKAUFT', 'VERSCHENKT']
 const statusLabels: Record<string, string> = { GEPLANT: 'Geplant', GEKAUFT: 'Gekauft', VERSCHENKT: 'Verschenkt' }
-const statusColors: Record<string, string> = {
-  GEPLANT: 'bg-blue-600 text-white',
-  GEKAUFT: 'bg-gray-100 text-gray-700',
-  VERSCHENKT: 'bg-gray-100 text-gray-700'
-}
+
+onMounted(() => {
+  const id = Number(personId.value)
+  person.value = (mockPersonen.find(p => p.id === id) || mockPersonen[0]) as Person
+  interests.value = [...mockInterests]
+  ideen.value = [...(mockIdeen[id] || [])]
+  geschenke.value = [...(mockGeschenke[id] || [])]
+  aufgaben.value = [...(mockAufgaben[id] || [])]
+  anlaesse.value = [...mockAnlaesse]
+  loading.value = false
+})
 </script>
 
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Header - immer sichtbar -->
+    <!-- Header -->
     <div class="flex items-start justify-between mb-8">
       <div class="flex items-start gap-4">
         <button @click="router.push('/personen')" class="mt-1 p-2 hover:bg-gray-100 rounded-xl transition-colors">
@@ -109,13 +215,13 @@ const statusColors: Record<string, string> = {
         <div v-if="person">
           <h1 class="text-2xl font-bold text-gray-900">{{ person.name }}</h1>
           <p class="text-sm text-gray-500 mt-0.5">Geburtstag: {{ formattedGeburtstag }}</p>
-          <div v-if="person.interessen?.length" class="flex flex-wrap gap-2 mt-2">
+          <div v-if="personInterests.length" class="flex flex-wrap gap-2 mt-2">
             <span
-              v-for="tag in person.interessen"
-              :key="tag"
+              v-for="interest in personInterests"
+              :key="interest.id"
               class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full"
             >
-              {{ tag }}
+              {{ interest.name }}
             </span>
           </div>
         </div>
@@ -125,7 +231,11 @@ const statusColors: Record<string, string> = {
       </div>
 
       <div v-if="person" class="flex items-center gap-2">
-        <button class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">
+        <button
+          type="button"
+          @click.stop="openAddIdee"
+          class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors"
+        >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
@@ -199,22 +309,24 @@ const statusColors: Record<string, string> = {
               <div class="flex items-start justify-between mb-2">
                 <h4 class="font-medium text-gray-900 text-sm">{{ idee.titel }}</h4>
                 <div class="flex items-center gap-1">
-                  <button class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <button type="button" @click.stop="openEditIdee(idee)" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </button>
-                  <button @click="deleteIdee(idee)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <button type="button" @click.stop="openDeleteIdee(idee)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
                 </div>
               </div>
-              <p v-if="idee.beschreibung" class="text-xs text-gray-500 mb-2">{{ idee.beschreibung }}</p>
-              <a v-if="idee.link" :href="idee.link" target="_blank" class="text-xs text-blue-600 hover:underline">Link öffnen</a>
+              <p v-if="idee.beschreibung" class="text-xs text-gray-500 mb-1">{{ idee.beschreibung }}</p>
+              <p v-if="idee.notizen" class="text-xs text-gray-400 italic mb-1">{{ idee.notizen }}</p>
+              <a v-if="idee.link" :href="idee.link" target="_blank" @click.stop class="text-xs text-blue-600 hover:underline">Link öffnen</a>
               <button
-                @click="convertToGeschenk(idee)"
+                type="button"
+                @click.stop="openUebernehmen(idee)"
                 class="w-full mt-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
               >
                 Als Geschenk übernehmen
@@ -235,8 +347,8 @@ const statusColors: Record<string, string> = {
                   <p v-if="g.beschreibung" class="text-xs text-gray-500">{{ g.beschreibung }}</p>
                   <p class="text-xs text-gray-400">Anlass: {{ g.anlassName }}</p>
                 </div>
-                <button @click="deleteGeschenk(g)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button type="button" @click.stop="openDeleteGeschenk(g.id)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                  <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
@@ -246,21 +358,18 @@ const statusColors: Record<string, string> = {
                 <button
                   v-for="s in statusButtons"
                   :key="s"
-                  @click="updateGeschenkStatus(g, s)"
+                  type="button"
+                  @click.stop="updateGeschenkStatus(g.id, s)"
                   :class="[
                     'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                    g.status === s ? statusColors[s] : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                    g.status === s
+                      ? (s === 'GEPLANT' ? 'bg-blue-600 text-white' : s === 'GEKAUFT' ? 'bg-emerald-600 text-white' : 'bg-purple-600 text-white')
+                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                   ]"
                 >
                   {{ statusLabels[s] }}
                 </button>
               </div>
-              <span :class="[
-                'inline-flex items-center gap-1 mt-2 text-xs font-medium px-2 py-0.5 rounded-full',
-                g.status === 'GEPLANT' ? 'bg-blue-50 text-blue-700' : g.status === 'GEKAUFT' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-600'
-              ]">
-                {{ statusLabels[g.status] }}
-              </span>
             </div>
           </div>
           <p v-else class="text-sm text-gray-400">Keine geplanten Geschenke</p>
@@ -314,5 +423,40 @@ const statusColors: Record<string, string> = {
         </div>
       </div>
     </div>
+
+    <!-- Modals -->
+    <GeschenkIdeeModal
+      :show="showIdeeModal"
+      :idee="editingIdee"
+      :anlaesse="anlaesse"
+      @save="handleSaveIdee"
+      @cancel="showIdeeModal = false"
+    />
+
+    <GeschenkUebernehmenModal
+      :show="showUebernehmenModal"
+      :idee="uebernehmenIdee"
+      :anlaesse="anlaesse"
+      @save="handleUebernehmen"
+      @cancel="showUebernehmenModal = false"
+    />
+
+    <ConfirmDialog
+      :show="showDeleteIdeeConfirm"
+      title="Geschenkidee löschen"
+      message="Möchtest du diese Geschenkidee wirklich löschen?"
+      confirm-text="Löschen"
+      @confirm="confirmDeleteIdee"
+      @cancel="showDeleteIdeeConfirm = false"
+    />
+
+    <ConfirmDialog
+      :show="showDeleteGeschenkConfirm"
+      title="Geschenk löschen"
+      message="Möchtest du dieses Geschenk wirklich löschen?"
+      confirm-text="Löschen"
+      @confirm="confirmDeleteGeschenk"
+      @cancel="showDeleteGeschenkConfirm = false"
+    />
   </div>
 </template>

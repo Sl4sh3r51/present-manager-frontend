@@ -3,7 +3,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { mockAnlaesse } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
-import type { Anlass } from '@/types'
+import type { Anlass, OccasionType } from '@/types'
 import AnlassModal from '@/components/AnlassModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
@@ -22,8 +22,8 @@ const editingAnlass = ref<Anlass | null>(null)
 const showDeleteDialog = ref(false)
 const deletingAnlass = ref<Anlass | null>(null)
 
-const festeAnlaesse = computed(() => anlaesse.value.filter(a => a.fest))
-const benutzerdefinierteAnlaesse = computed(() => anlaesse.value.filter(a => !a.fest))
+const festeAnlaesse = computed(() => anlaesse.value.filter(a => a.type === 'FEST'))
+const benutzerdefinierteAnlaesse = computed(() => anlaesse.value.filter(a => a.type === 'BENUTZERDEFINIERT'))
 
 const totalCount = computed(() => anlaesse.value.length)
 const festCount = computed(() => festeAnlaesse.value.length)
@@ -57,7 +57,10 @@ function handleSaveAnlass(data: Partial<Anlass>) {
     const newAnlass: Anlass = {
       id: nextId++,
       name: data.name || '',
-      fest: data.fest || false
+      type: (data.type || 'BENUTZERDEFINIERT') as OccasionType,
+      recurring: data.recurring || false,
+      fixedMonth: data.fixedMonth,
+      fixedDay: data.fixedDay
     }
     anlaesse.value.push(newAnlass)
     success('Anlass wurde erstellt')
