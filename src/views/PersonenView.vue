@@ -2,9 +2,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { mockPersonen } from '@/services/mockData'
+import { mockPersonen, mockInterests } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
-import type { Person } from '@/types'
+import type { Person, Interest } from '@/types'
 import PersonCard from '@/components/PersonCard.vue'
 import PersonModal from '@/components/PersonModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -15,6 +15,7 @@ const { success } = useToast()
 let nextId = 100
 
 const personen = ref<Person[]>([])
+const interests = ref<Interest[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
 const activeFilter = ref('Alle')
@@ -50,6 +51,7 @@ const filteredPersonen = computed(() => {
 
 onMounted(() => {
   personen.value = [...mockPersonen] as Person[]
+  interests.value = [...mockInterests]
   loading.value = false
 })
 
@@ -59,7 +61,8 @@ function openCreateModal() {
 }
 
 function openEditModal(person: Person) {
-  editingPerson.value = person
+  const personInterests = interests.value.filter(i => i.personId === String(person.id)).map(i => i.name)
+  editingPerson.value = { ...person, interessen: personInterests.join(', ') } as Person & { interessen: string }
   showPersonModal.value = true
 }
 
@@ -68,22 +71,38 @@ function openDeleteDialog(person: Person) {
   showDeleteDialog.value = true
 }
 
-function handleSavePerson(data: Partial<Person>) {
+function handleSavePerson(data: Partial<Person> & { interessen?: string[] }) {
   if (editingPerson.value) {
-    Object.assign(editingPerson.value, data)
+    const { interessen: newInterests, ...personData } = data
+    Object.assign(editingPerson.value, personData)
+    if (newInterests) {
+      // Update interests for this person
+      const personIdStr = String(editingPerson.value.id)
+      interests.value = interests.value.filter(i => i.personId !== personIdStr)
+      newInterests.forEach((name, idx) => {
+        interests.value.push({ id: `new-${Date.now()}-${idx}`, personId: personIdStr, name })
+      })
+    }
     success('Person wurde aktualisiert')
   } else {
+    const { interessen: newInterests, ...personData } = data
+    const newId = nextId++
     const newPerson: Person = {
-      id: nextId++,
-      name: data.name || '',
-      geburtstag: data.geburtstag || '',
-      interessen: data.interessen || [],
-      notizen: data.notizen || '',
+      id: newId,
+      name: personData.name || '',
+      geburtstag: personData.geburtstag || '',
+      status: personData.status || 'AKTIV',
+      notizen: personData.notizen || '',
       hatIdeen: false,
       hatGekauft: false,
       geschenke: []
     }
     personen.value.push(newPerson)
+    if (newInterests) {
+      newInterests.forEach((name, idx) => {
+        interests.value.push({ id: `new-${Date.now()}-${idx}`, personId: String(newId), name })
+      })
+    }
     success('Person wurde erfolgreich angelegt')
   }
   showPersonModal.value = false

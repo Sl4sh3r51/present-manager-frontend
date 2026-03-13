@@ -9,7 +9,7 @@ const uebersicht = ref<Person[]>([])
 
 const stats = computed(() => ({
   personenGesamt: uebersicht.value.length,
-  ideen: uebersicht.value.filter(p => p.geschenke?.some(g => g.typ === 'IDEE')).length,
+  ideen: uebersicht.value.filter(p => p.hatIdeen).length,
   geplant: uebersicht.value.filter(p => p.geschenke?.some(g => g.status === 'GEPLANT')).length,
   gekauft: uebersicht.value.filter(p => p.geschenke?.some(g => g.status === 'GEKAUFT')).length
 }))
