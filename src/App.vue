@@ -5,7 +5,7 @@ import AppNavbar from '@/components/AppNavbar.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
 
 const route = useRoute()
-const showNavbar = computed(() => route.name !== 'Login')
+const showNavbar = computed(() => route.name !== 'Login' && route.name !== 'Register')
 </script>
 
 <template>

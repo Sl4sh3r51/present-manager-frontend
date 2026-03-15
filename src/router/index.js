@@ -6,6 +6,7 @@ import PersonDetailView from '@/views/PersonDetailView.vue'
 import AnlaesseView from '@/views/AnlaesseView.vue'
 import UebersichtView from '@/views/UebersichtView.vue'
 import LoginView from '@/views/LoginView.vue'
+import RegisterView from '@/views/RegisterView.vue'
 
 const routes = [
   { path: '/login', name: 'Login', component: LoginView, meta: { requiresAuth: false } },
@@ -14,6 +15,7 @@ const routes = [
   { path: '/personen/:id', name: 'PersonDetail', component: PersonDetailView, props: true, meta: { requiresAuth: true } },
   { path: '/anlaesse', name: 'Anlaesse', component: AnlaesseView, meta: { requiresAuth: true } },
   { path: '/uebersicht', name: 'Uebersicht', component: UebersichtView, meta: { requiresAuth: true } },
+  { path: '/register', name: 'Register', component: RegisterView, meta: { requiresAuth: false } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
