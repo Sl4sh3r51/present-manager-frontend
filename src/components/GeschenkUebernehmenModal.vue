@@ -1,54 +1,50 @@
-<!-- src/components/GeschenkUebernehmenModal.vue -->
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import type { GeschenkIdee, Anlass } from '@/types'
+import type { GiftIdea, Occasion, GiftStatus } from '@/types'
 
 const props = defineProps<{
   show: boolean
-  idee: GeschenkIdee | null
-  anlaesse: Anlass[]
+  idee: GiftIdea | null
+  anlaesse: Occasion[]
 }>()
 
 const emit = defineEmits<{
-  save: [data: { titel: string; beschreibung: string; anlassName: string; datum: string | null; status: string }]
+  save: [data: { title: string; description: string | null; occasionId: string; status: GiftStatus }]
   cancel: []
 }>()
 
 const form = ref({
-  titel: '',
-  beschreibung: '',
-  anlassName: '',
-  datum: '',
-  status: 'GEPLANT'
+  title: '',
+  description: '',
+  occasionId: '',
+  status: 'PLANNED' as GiftStatus
 })
 
-const statusOptions: { value: string; label: string }[] = [
-  { value: 'GEPLANT', label: 'Geplant' },
-  { value: 'GEKAUFT', label: 'Gekauft' },
-  { value: 'VERSCHENKT', label: 'Verschenkt' }
+const statusOptions: { value: GiftStatus; label: string }[] = [
+  { value: 'PLANNED', label: 'Geplant' },
+  { value: 'BOUGHT', label: 'Gekauft' },
+  { value: 'GIFTED', label: 'Verschenkt' }
 ]
 
 watch(() => props.show, (newVal) => {
   if (newVal && props.idee) {
     form.value = {
-      titel: props.idee.titel,
-      beschreibung: props.idee.beschreibung || '',
-      anlassName: props.anlaesse.length > 0 ? props.anlaesse[0]!.name : '',
-      datum: '',
-      status: 'GEPLANT'
+      title: props.idee.title,
+      description: props.idee.description || '',
+      occasionId: props.anlaesse.length > 0 ? props.anlaesse[0]!.id : '',
+      status: 'PLANNED'
     }
   }
 })
 
-const isValid = computed(() => form.value.titel.trim() !== '' && form.value.anlassName !== '')
+const isValid = computed(() => form.value.title.trim() !== '' && form.value.occasionId !== '')
 
 function handleSubmit() {
   if (!isValid.value) return
   emit('save', {
-    titel: form.value.titel.trim(),
-    beschreibung: form.value.beschreibung.trim(),
-    anlassName: form.value.anlassName,
-    datum: form.value.datum || null,
+    title: form.value.title.trim(),
+    description: form.value.description.trim() || null,
+    occasionId: form.value.occasionId,
     status: form.value.status
   })
 }
@@ -83,7 +79,7 @@ function handleSubmit() {
                 Titel <span class="text-red-500">*</span>
               </label>
               <input
-                v-model="form.titel"
+                v-model="form.title"
                 type="text"
                 class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400"
                 required
@@ -93,7 +89,7 @@ function handleSubmit() {
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1.5">Beschreibung</label>
               <textarea
-                v-model="form.beschreibung"
+                v-model="form.description"
                 rows="2"
                 class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400 resize-none"
               />
@@ -104,24 +100,15 @@ function handleSubmit() {
                 Anlass <span class="text-red-500">*</span>
               </label>
               <select
-                v-model="form.anlassName"
+                v-model="form.occasionId"
                 class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white"
                 required
               >
                 <option value="" disabled>Anlass wählen...</option>
-                <option v-for="anlass in anlaesse" :key="anlass.id" :value="anlass.name">
+                <option v-for="anlass in anlaesse" :key="anlass.id" :value="anlass.id">
                   {{ anlass.name }}
                 </option>
               </select>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Datum</label>
-              <input
-                v-model="form.datum"
-                type="date"
-                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-              />
             </div>
 
             <div>

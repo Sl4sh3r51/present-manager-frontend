@@ -1,22 +1,71 @@
-<!-- src/views/DashboardView.vue -->
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { mockDashboardSummary } from '@/services/mockData'
-import type { DashboardSummary } from '@/types'
+import { personsApi, giftsApi, giftIdeasApi, tasksApi } from '@/services/api'
+import { useToast } from '@/composables/useToast'
+import type { DashboardSummary, Task } from '@/types'
+
+const { error: showError } = useToast()
 
 const loading = ref(true)
-
 const summary = ref<DashboardSummary>({
-  naechsteGeburtstage: [],
-  weihnachtsStatus: { ideen: 0, geplant: 0, gekauft: 0, verschenkt: 0 },
-  offeneAufgaben: []
+  upcomingBirthdays: [],
+  giftStats: { ideas: 0, planned: 0, bought: 0, gifted: 0 },
+  openTasks: []
 })
 
-onMounted(() => {
-  summary.value = mockDashboardSummary
-  loading.value = false
-})
+onMounted(async () => {
+  try {
+    const personsRes = await personsApi.getAll()
+    const allPersons = personsRes.data || []
 
+    const now = new Date()
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+    const upcomingBirthdays = allPersons.filter(p => {
+      if (!p.birthday) return false
+      const birthDate = new Date(p.birthday)
+      const thisYear = new Date(now.getFullYear(), birthDate.getMonth(), birthDate.getDate())
+      if (thisYear < now) thisYear.setFullYear(now.getFullYear() + 1)
+      return thisYear >= now && thisYear <= thirtyDaysFromNow
+    }).sort((a, b) => {
+      const aDate = new Date(a.birthday!)
+      const bDate = new Date(b.birthday!)
+      const aThisYear = new Date(now.getFullYear(), aDate.getMonth(), aDate.getDate())
+      const bThisYear = new Date(now.getFullYear(), bDate.getMonth(), bDate.getDate())
+      return aThisYear.getTime() - bThisYear.getTime()
+    })
+
+    const giftsRes = await giftsApi.getAll()
+    const allGifts = giftsRes.data || []
+    const giftIdeasRes = await giftIdeasApi.getAll()
+    const allIdeas = giftIdeasRes.data || []
+
+    const giftStats = {
+      ideas: allIdeas.length,
+      planned: allGifts.filter(g => g.status === 'PLANNED').length,
+      bought: allGifts.filter(g => g.status === 'BOUGHT').length,
+      gifted: allGifts.filter(g => g.status === 'GIFTED').length
+    }
+
+    const tasksRes = await tasksApi.getAll()
+    const allTasks = tasksRes.data || []
+    const openTasks = allTasks.filter((t: Task) => !t.isDone).slice(0, 3)
+
+    const enrichedTasks = await Promise.all(
+      openTasks.map(async (task: Task) => {
+        const personRes = await personsApi.getById(task.personId)
+        return { ...task, personName: personRes.data?.name || 'Unbekannt' }
+      })
+    )
+
+    summary.value = { upcomingBirthdays, giftStats, openTasks: enrichedTasks }
+  } catch (err) {
+    console.error('Fehler beim Laden der Dashboard-Daten:', err)
+    showError('Dashboard-Daten konnten nicht geladen werden')
+  } finally {
+    loading.value = false
+  }
+})
 </script>
 
 <template>
@@ -58,14 +107,14 @@ onMounted(() => {
               <p class="text-xs text-gray-500">30 Tage</p>
             </div>
           </div>
-          <div v-if="summary.naechsteGeburtstage?.length > 0">
+          <div v-if="summary.upcomingBirthdays?.length > 0">
             <div
-              v-for="gb in summary.naechsteGeburtstage"
-              :key="gb.personId"
+              v-for="person in summary.upcomingBirthdays"
+              :key="person.id"
               class="flex items-center justify-between py-2"
             >
-              <span class="text-sm text-gray-700">{{ gb.name }}</span>
-              <span class="text-xs text-gray-500">{{ gb.datum }}</span>
+              <span class="text-sm text-gray-700">{{ person.name }}</span>
+              <span class="text-xs text-gray-500">{{ person.birthday }}</span>
             </div>
           </div>
           <p v-else class="text-sm text-gray-400">Keine bevorstehenden Geburtstage</p>
@@ -87,19 +136,19 @@ onMounted(() => {
           <div class="space-y-2">
             <div class="flex items-center justify-between text-sm">
               <span class="text-gray-600">Ideen</span>
-              <span class="font-medium text-gray-900">{{ summary.weihnachtsStatus?.ideen || 0 }}</span>
+              <span class="font-medium text-gray-900">{{ summary.giftStats?.ideas || 0 }}</span>
             </div>
             <div class="flex items-center justify-between text-sm">
               <span class="text-gray-600">Geplant</span>
-              <span class="font-medium text-gray-900">{{ summary.weihnachtsStatus?.geplant || 0 }}</span>
+              <span class="font-medium text-gray-900">{{ summary.giftStats?.planned || 0 }}</span>
             </div>
             <div class="flex items-center justify-between text-sm">
               <span class="text-gray-600">Gekauft</span>
-              <span class="font-medium text-gray-900">{{ summary.weihnachtsStatus?.gekauft || 0 }}</span>
+              <span class="font-medium text-gray-900">{{ summary.giftStats?.bought || 0 }}</span>
             </div>
             <div class="flex items-center justify-between text-sm">
               <span class="text-gray-600">Verschenkt</span>
-              <span class="font-medium text-gray-900">{{ summary.weihnachtsStatus?.verschenkt || 0 }}</span>
+              <span class="font-medium text-gray-900">{{ summary.giftStats?.gifted || 0 }}</span>
             </div>
           </div>
         </div>
@@ -114,19 +163,19 @@ onMounted(() => {
             </div>
             <div>
               <h3 class="font-semibold text-gray-900">Offene Aufgaben</h3>
-              <p class="text-xs text-gray-500">{{ summary.offeneAufgaben?.length || 0 }} zu erledigen</p>
+              <p class="text-xs text-gray-500">{{ summary.openTasks?.length || 0 }} zu erledigen</p>
             </div>
           </div>
-          <div v-if="summary.offeneAufgaben?.length > 0" class="space-y-3">
+          <div v-if="summary.openTasks?.length > 0" class="space-y-3">
             <div
-              v-for="aufgabe in summary.offeneAufgaben.slice(0, 3)"
-              :key="aufgabe.id"
+              v-for="task in summary.openTasks.slice(0, 3)"
+              :key="task.id"
               class="flex items-start gap-3"
             >
               <input type="checkbox" class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
               <div>
-                <p class="text-sm text-gray-800">{{ aufgabe.titel }}</p>
-                <p class="text-xs text-gray-500">{{ aufgabe.personName }}</p>
+                <p class="text-sm text-gray-800">{{ task.title }}</p>
+                <p class="text-xs text-gray-500">{{ task.personName }}</p>
               </div>
             </div>
           </div>
