@@ -1,25 +1,21 @@
-<!-- src/views/PersonenView.vue -->
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { mockPersonen, mockInterests } from '@/services/mockData'
+import { personsApi } from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import type { Person, Interest } from '@/types'
+import type { Person } from '@/types'
 import PersonCard from '@/components/PersonCard.vue'
 import PersonModal from '@/components/PersonModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const router = useRouter()
-const { success } = useToast()
-
-let nextId = 100
+const { success, error: showError } = useToast()
 
 const personen = ref<Person[]>([])
-const interests = ref<Interest[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
 const activeFilter = ref('Alle')
-const filters = ['Alle', 'Ideen', 'Gekauft']
+const filters = ['Alle']
 
 // Modal State
 const showPersonModal = ref(false)
@@ -39,20 +35,19 @@ const filteredPersonen = computed(() => {
     result = result.filter(p => p.name.toLowerCase().includes(q))
   }
 
-  // Filter
-  if (activeFilter.value === 'Ideen') {
-    result = result.filter(p => p.hatIdeen)
-  } else if (activeFilter.value === 'Gekauft') {
-    result = result.filter(p => p.hatGekauft)
-  }
-
   return result
 })
 
-onMounted(() => {
-  personen.value = [...mockPersonen] as Person[]
-  interests.value = [...mockInterests]
-  loading.value = false
+onMounted(async () => {
+  try {
+    const personsRes = await personsApi.getAll()
+    personen.value = personsRes.data || []
+  } catch (err) {
+    console.error('Fehler beim Laden der Personen:', err)
+    showError('Personen konnten nicht geladen werden')
+  } finally {
+    loading.value = false
+  }
 })
 
 function openCreateModal() {
@@ -61,8 +56,7 @@ function openCreateModal() {
 }
 
 function openEditModal(person: Person) {
-  const personInterests = interests.value.filter(i => i.personId === String(person.id)).map(i => i.name)
-  editingPerson.value = { ...person, interessen: personInterests.join(', ') } as Person & { interessen: string }
+  editingPerson.value = { ...person }
   showPersonModal.value = true
 }
 
@@ -71,46 +65,47 @@ function openDeleteDialog(person: Person) {
   showDeleteDialog.value = true
 }
 
-function handleSavePerson(data: Partial<Person> & { interessen?: string[] }) {
-  if (editingPerson.value) {
-    const { interessen: newInterests, ...personData } = data
-    Object.assign(editingPerson.value, personData)
-    if (newInterests) {
-      // Update interests for this person
-      const personIdStr = String(editingPerson.value.id)
-      interests.value = interests.value.filter(i => i.personId !== personIdStr)
-      newInterests.forEach((name, idx) => {
-        interests.value.push({ id: `new-${Date.now()}-${idx}`, personId: personIdStr, name })
+async function handleSavePerson(data: Partial<Person>) {
+  try {
+    if (editingPerson.value) {
+      const res = await personsApi.update(editingPerson.value.id, {
+        name: data.name || editingPerson.value.name,
+        status: editingPerson.value.status,
+        birthday: data.birthday ?? editingPerson.value.birthday ?? null,
+        notes: data.notes ?? editingPerson.value.notes ?? null
       })
-    }
-    success('Person wurde aktualisiert')
-  } else {
-    const { interessen: newInterests, ...personData } = data
-    const newId = nextId++
-    const newPerson: Person = {
-      id: newId,
-      name: personData.name || '',
-      geburtstag: personData.geburtstag || '',
-      status: personData.status || 'AKTIV',
-      notizen: personData.notizen || '',
-      hatIdeen: false,
-      hatGekauft: false,
-      geschenke: []
-    }
-    personen.value.push(newPerson)
-    if (newInterests) {
-      newInterests.forEach((name, idx) => {
-        interests.value.push({ id: `new-${Date.now()}-${idx}`, personId: String(newId), name })
+      const index = personen.value.findIndex(p => p.id === editingPerson.value!.id)
+      if (index !== -1) {
+        personen.value[index] = res.data
+      }
+      success('Person wurde aktualisiert')
+    } else {
+      const res = await personsApi.create({
+        name: data.name || '',
+        status: 'NONE',
+        birthday: data.birthday || null,
+        notes: data.notes || null
       })
+      if (res.data) personen.value.push(res.data)
+      success('Person wurde erfolgreich angelegt')
     }
-    success('Person wurde erfolgreich angelegt')
+  } catch (err) {
+    console.error('Fehler beim Speichern:', err)
+    showError('Person konnte nicht gespeichert werden')
   }
   showPersonModal.value = false
 }
 
-function handleDeletePerson() {
-  personen.value = personen.value.filter(p => p.id !== deletingPerson.value!.id)
-  success(`${deletingPerson.value!.name} wurde gelöscht`)
+async function handleDeletePerson() {
+  if (!deletingPerson.value) return
+  try {
+    await personsApi.delete(deletingPerson.value.id)
+    personen.value = personen.value.filter(p => p.id !== deletingPerson.value!.id)
+    success(`${deletingPerson.value.name} wurde gelöscht`)
+  } catch (err) {
+    console.error('Fehler beim Löschen:', err)
+    showError('Person konnte nicht gelöscht werden')
+  }
   showDeleteDialog.value = false
 }
 

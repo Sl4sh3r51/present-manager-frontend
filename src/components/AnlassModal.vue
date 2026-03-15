@@ -1,21 +1,20 @@
-<!-- src/components/AnlassModal.vue -->
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import type { Anlass } from '@/types'
+import type { Occasion } from '@/types'
 
 const props = defineProps<{
   show: boolean
-  anlass?: Anlass
+  anlass?: Occasion
 }>()
 
 const emit = defineEmits<{
-  save: [data: Partial<Anlass>]
+  save: [data: Partial<Occasion>]
   cancel: []
 }>()
 
 const form = ref({
   name: '',
-  recurring: false,
+  isRecurring: false,
   fixedMonth: null as number | null,
   fixedDay: null as number | null
 })
@@ -28,12 +27,12 @@ watch(() => props.show, (newVal) => {
   if (newVal && props.anlass) {
     form.value = {
       name: props.anlass.name || '',
-      recurring: props.anlass.recurring || false,
+      isRecurring: props.anlass.isRecurring || false,
       fixedMonth: props.anlass.fixedMonth ?? null,
       fixedDay: props.anlass.fixedDay ?? null
     }
   } else if (newVal) {
-    form.value = { name: '', recurring: false, fixedMonth: null, fixedDay: null }
+    form.value = { name: '', isRecurring: false, fixedMonth: null, fixedDay: null }
   }
 })
 
@@ -43,10 +42,10 @@ function handleSubmit() {
   if (!isValid.value) return
   emit('save', {
     name: form.value.name.trim(),
-    type: 'BENUTZERDEFINIERT',
-    recurring: form.value.recurring,
-    fixedMonth: form.value.recurring ? form.value.fixedMonth : undefined,
-    fixedDay: form.value.recurring ? form.value.fixedDay : undefined
+    type: 'CUSTOM',
+    isRecurring: form.value.isRecurring,
+    fixedMonth: form.value.isRecurring ? form.value.fixedMonth : null,
+    fixedDay: form.value.isRecurring ? form.value.fixedDay : null
   })
 }
 </script>
@@ -92,7 +91,7 @@ function handleSubmit() {
             <div>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input
-                  v-model="form.recurring"
+                  v-model="form.isRecurring"
                   type="checkbox"
                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
@@ -100,7 +99,7 @@ function handleSubmit() {
               </label>
             </div>
 
-            <div v-if="form.recurring" class="grid grid-cols-2 gap-4">
+            <div v-if="form.isRecurring" class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Monat (1-12)</label>
                 <input

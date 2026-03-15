@@ -1,67 +1,88 @@
-export type PersonStatus = 'AKTIV' | 'ARCHIVIERT' | 'INAKTIV'
-export type OccasionType = 'FEST' | 'BENUTZERDEFINIERT'
-export type GiftSource = 'manual' | 'ai' | 'shared'
+export type PersonStatus = 'NONE' | 'IDEAS' | 'PLANNED' | 'COMPLETED'
+export type OccasionType = 'FIXED' | 'CUSTOM'
+export type GiftSource = 'MANUAL' | 'AI' | 'SHARED'
+export type GiftStatus = 'PLANNED' | 'BOUGHT' | 'GIFTED'
 
 export interface Person {
-  id: number
+  id: string
   name: string
-  geburtstag: string
   status: PersonStatus
-  notizen: string
-  hatIdeen: boolean
-  hatGekauft: boolean
-  geschenke: Geschenk[]
+  birthday: string | null
+  notes: string | null
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface Interest {
   id: string
-  personId: string
   name: string
   createdAt?: string
   updatedAt?: string
 }
 
-export interface Geschenk {
-  id: number
-  titel: string
-  beschreibung: string
-  anlassName: string
-  status: 'GEPLANT' | 'GEKAUFT' | 'VERSCHENKT'
-  datum: string | null
-  imageUrl?: string
-  giftIdeaId?: number
-  purchaseDate?: string
-  givenDate?: string
-}
-
-export interface GeschenkIdee {
-  id: number
-  titel: string
-  beschreibung: string
-  link: string | null
-  notizen: string | null
-  imageUrl?: string
-  occasionId?: number
-  source: GiftSource
-}
-
-export interface Aufgabe {
-  id: number
-  titel: string
-  erledigt: boolean
-}
-
-export interface Anlass {
-  id: number
+export interface Occasion {
+  id: string
   name: string
   type: OccasionType
-  recurring: boolean
-  fixedMonth?: number | null
-  fixedDay?: number | null
+  isRecurring: boolean
+  fixedMonth: number | null
+  fixedDay: number | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface GiftIdea {
+  id: string
+  personId: string
+  occasionId: string | null
+  title: string
+  description: string | null
+  link: string | null
+  imageUrl: string | null
+  source: GiftSource
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface Gift {
+  id: string
+  personId: string
+  occasionId: string
+  giftIdeaId: string | null
+  title: string
+  description: string | null
+  link: string | null
+  imageUrl: string | null
+  status: GiftStatus
+  purchaseDate: string | null
+  givenDate: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface Task {
+  id: string
+  personId: string
+  title: string
+  isDone: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface PersonInterest {
+  id: {
+    personId: string
+    interestId: string
+  }
 }
 
 export interface DashboardSummary {
-  naechsteGeburtstage: { personId: number; name: string; datum: string }[]
-  weihnachtsStatus: { ideen: number; geplant: number; gekauft: number; verschenkt: number }
-  offeneAufgaben: { id: number; titel: string; personName: string }[]
+  upcomingBirthdays: Person[]
+  giftStats: {
+    ideas: number
+    planned: number
+    bought: number
+    gifted: number
+  }
+  openTasks: (Task & { personName?: string })[]
 }

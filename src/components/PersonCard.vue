@@ -1,6 +1,6 @@
-<!-- src/components/PersonCard.vue -->
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import type { PersonStatus } from '@/types'
 
 const props = defineProps({
   person: { type: Object, required: true }
@@ -27,25 +27,21 @@ const avatarColor = computed(() => {
   return colors[idx]
 })
 
-const tageHer = computed(() => {
-  if (!props.person.geburtstag) return null
-  return Math.floor((new Date().getTime() - new Date(props.person.geburtstag).getTime()) / (1000 * 60 * 60 * 24))
-})
-
 const formattedDate = computed(() => {
-  if (!props.person.geburtstag) return ''
-  const d = new Date(props.person.geburtstag)
+  if (!props.person.birthday) return ''
+  const d = new Date(props.person.birthday)
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 })
 
 const statusBadge = computed(() => {
-  if (props.person.hatGekauft) {
-    return { text: 'Gekauft', class: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: '✓' }
+  const status = props.person.status as PersonStatus
+  const map: Record<PersonStatus, { text: string; class: string }> = {
+    NONE: { text: 'Keine Ideen', class: 'bg-gray-50 text-gray-500 border-gray-200' },
+    IDEAS: { text: 'Ideen vorhanden', class: 'bg-amber-50 text-amber-700 border-amber-200' },
+    PLANNED: { text: 'Geplant', class: 'bg-blue-50 text-blue-700 border-blue-200' },
+    COMPLETED: { text: 'Abgeschlossen', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
   }
-  if (props.person.hatIdeen) {
-    return { text: 'Ideen vorhanden', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: '💡' }
-  }
-  return { text: 'Keine Ideen', class: 'bg-gray-50 text-gray-500 border-gray-200', icon: '' }
+  return map[status] || map.NONE
 })
 
 function toggleMenu(e: Event) {
@@ -71,7 +67,6 @@ function handleDelete(e: Event) {
     @click="emit('click', person)"
     class="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-gray-300 cursor-pointer transition-all duration-200 relative group"
   >
-    <!-- Three-dot Menu -->
     <div class="absolute top-4 right-4">
       <button
         @click="toggleMenu"
@@ -117,7 +112,6 @@ function handleDelete(e: Event) {
       </Transition>
     </div>
 
-    <!-- Status Badge -->
     <div class="flex items-start justify-between mb-4">
       <div :class="['w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg', avatarColor]">
         {{ initials }}
@@ -125,23 +119,18 @@ function handleDelete(e: Event) {
       <span
         :class="['text-xs font-medium px-2.5 py-1 rounded-full border', statusBadge.class]"
       >
-        {{ statusBadge.icon }} {{ statusBadge.text }}
+        {{ statusBadge.text }}
       </span>
     </div>
 
-    <!-- Info -->
     <h3 class="font-semibold text-gray-900 text-base mb-1">{{ person.name }}</h3>
-    <div class="flex items-center gap-1.5 text-sm text-gray-500">
+    <div v-if="formattedDate" class="flex items-center gap-1.5 text-sm text-gray-500">
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
       {{ formattedDate }}
     </div>
-    <p v-if="tageHer !== null" class="text-xs text-blue-600 mt-0.5 ml-5">
-      {{ tageHer }} Tage her
-    </p>
   </div>
 
-  <!-- Click-away for menu -->
   <div v-if="showMenu" class="fixed inset-0 z-0" @click.stop="showMenu = false" />
 </template>

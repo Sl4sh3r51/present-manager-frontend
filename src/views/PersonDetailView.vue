@@ -1,204 +1,242 @@
-<!-- src/views/PersonDetailView.vue -->
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { mockPersonen, mockIdeen, mockGeschenke, mockAufgaben, mockAnlaesse, mockInterests } from '@/services/mockData'
+import { personsApi, giftIdeasApi, giftsApi, tasksApi, occasionsApi, personInterestsApi } from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import GeschenkIdeeModal from '@/components/GeschenkIdeeModal.vue'
 import GeschenkUebernehmenModal from '@/components/GeschenkUebernehmenModal.vue'
-import type { Person, Geschenk, GeschenkIdee, Aufgabe, Anlass, Interest } from '@/types'
+import type { Person, GiftIdea, Gift, Task, Occasion, Interest, GiftStatus } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
-const { success } = useToast()
-
-let nextAufgabeId = 100
+const { success, error: showError } = useToast()
 
 const person = ref<Person | null>(null)
 const interests = ref<Interest[]>([])
-const ideen = ref<GeschenkIdee[]>([])
-const geschenke = ref<Geschenk[]>([])
-const aufgaben = ref<Aufgabe[]>([])
-const anlaesse = ref<Anlass[]>([])
+const ideen = ref<GiftIdea[]>([])
+const geschenke = ref<Gift[]>([])
+const aufgaben = ref<Task[]>([])
+const anlaesse = ref<Occasion[]>([])
 const loading = ref(true)
 const neueAufgabe = ref('')
 
 const personId = computed(() => route.params.id as string)
 
 const formattedGeburtstag = computed(() => {
-  if (!person.value?.geburtstag) return ''
-  return new Date(person.value.geburtstag).toLocaleDateString('de-DE', {
+  if (!person.value?.birthday) return ''
+  return new Date(person.value.birthday).toLocaleDateString('de-DE', {
     day: '2-digit', month: 'long', year: 'numeric'
   })
 })
 
-const personInterests = computed(() => interests.value.filter(i => i.personId === personId.value))
+function getOccasionName(occasionId: string | null): string {
+  if (!occasionId) return 'Kein Anlass'
+  const occasion = anlaesse.value.find(a => a.id === occasionId)
+  return occasion?.name || 'Unbekannt'
+}
 
-// --- Idee Modal State ---
 const showIdeeModal = ref(false)
-const editingIdee = ref<GeschenkIdee | null>(null)
+const editingIdee = ref<GiftIdea | null>(null)
 
 function openAddIdee() {
-  console.log('[DEBUG] openAddIdee called')
   editingIdee.value = null
   showIdeeModal.value = true
 }
 
-function openEditIdee(idee: GeschenkIdee) {
-  console.log('[DEBUG] openEditIdee called', idee.id, idee.titel)
+function openEditIdee(idee: GiftIdea) {
   editingIdee.value = { ...idee }
   showIdeeModal.value = true
 }
 
-function handleSaveIdee(data: { titel: string; beschreibung: string; link: string | null; notizen: string | null; imageUrl?: string; occasionId?: number }) {
-  if (editingIdee.value) {
-    ideen.value = ideen.value.map(i =>
-      i.id === editingIdee.value!.id
-        ? { ...i, titel: data.titel, beschreibung: data.beschreibung, link: data.link, notizen: data.notizen, imageUrl: data.imageUrl || '', occasionId: data.occasionId }
-        : i
-    )
-    success('Geschenkidee wurde aktualisiert')
-  } else {
-    const newIdee: GeschenkIdee = {
-      id: Date.now(),
-      titel: data.titel,
-      beschreibung: data.beschreibung,
-      link: data.link,
-      notizen: data.notizen,
-      imageUrl: data.imageUrl || '',
-      occasionId: data.occasionId,
-      source: 'manual'
+async function handleSaveIdee(data: { title: string; description: string | null; link: string | null; imageUrl?: string | null; occasionId?: string | null }) {
+  try {
+    if (editingIdee.value) {
+      const res = await giftIdeasApi.update(editingIdee.value.id, {
+        personId: personId.value,
+        title: data.title,
+        description: data.description,
+        link: data.link,
+        imageUrl: data.imageUrl || null,
+        occasionId: data.occasionId || null,
+        source: editingIdee.value.source
+      })
+      ideen.value = ideen.value.map(i => i.id === editingIdee.value!.id ? res.data : i)
+      success('Geschenkidee wurde aktualisiert')
+    } else {
+      const res = await giftIdeasApi.create({
+        personId: personId.value,
+        title: data.title,
+        description: data.description,
+        link: data.link,
+        imageUrl: data.imageUrl || null,
+        occasionId: data.occasionId || null,
+        source: 'MANUAL'
+      })
+      ideen.value = [...ideen.value, res.data]
+      success('Geschenkidee wurde hinzugefügt')
     }
-    ideen.value = [...ideen.value, newIdee]
-    success('Geschenkidee wurde hinzugefügt')
+  } catch (err) {
+    console.error('Fehler beim Speichern der Idee:', err)
+    showError('Geschenkidee konnte nicht gespeichert werden')
   }
   showIdeeModal.value = false
   editingIdee.value = null
 }
 
-// --- Delete Idee Confirm ---
 const showDeleteIdeeConfirm = ref(false)
-const deletingIdeeId = ref<number | null>(null)
+const deletingIdeeId = ref<string | null>(null)
 
-function openDeleteIdee(idee: GeschenkIdee) {
-  console.log('[DEBUG] openDeleteIdee called', idee.id, idee.titel)
+function openDeleteIdee(idee: GiftIdea) {
   deletingIdeeId.value = idee.id
   showDeleteIdeeConfirm.value = true
 }
 
-function confirmDeleteIdee() {
+async function confirmDeleteIdee() {
   if (deletingIdeeId.value !== null) {
-    ideen.value = ideen.value.filter(i => i.id !== deletingIdeeId.value)
-    success('Geschenkidee wurde gelöscht')
+    try {
+      await giftIdeasApi.delete(deletingIdeeId.value)
+      ideen.value = ideen.value.filter(i => i.id !== deletingIdeeId.value)
+      success('Geschenkidee wurde gelöscht')
+    } catch (err) {
+      console.error('Fehler beim Löschen der Idee:', err)
+      showError('Geschenkidee konnte nicht gelöscht werden')
+    }
   }
   showDeleteIdeeConfirm.value = false
   deletingIdeeId.value = null
 }
 
-// --- Übernehmen Modal State ---
 const showUebernehmenModal = ref(false)
-const uebernehmenIdee = ref<GeschenkIdee | null>(null)
+const uebernehmenIdee = ref<GiftIdea | null>(null)
 
-function openUebernehmen(idee: GeschenkIdee) {
-  console.log('[DEBUG] openUebernehmen called', idee.id, idee.titel)
+function openUebernehmen(idee: GiftIdea) {
   uebernehmenIdee.value = { ...idee }
   showUebernehmenModal.value = true
 }
 
-function handleUebernehmen(data: { titel: string; beschreibung: string; anlassName: string; datum: string | null; status: string }) {
-  const now = new Date().toISOString().split('T')[0]
-  const newGeschenk: Geschenk = {
-    id: Date.now(),
-    titel: data.titel,
-    beschreibung: data.beschreibung,
-    anlassName: data.anlassName,
-    status: data.status as Geschenk['status'],
-    datum: data.datum,
-    imageUrl: uebernehmenIdee.value?.imageUrl || '',
-    giftIdeaId: uebernehmenIdee.value?.id,
-    purchaseDate: data.status === 'GEKAUFT' ? now : undefined,
-    givenDate: data.status === 'VERSCHENKT' ? now : undefined
+async function handleUebernehmen(data: { title: string; description: string | null; occasionId: string; status: GiftStatus }) {
+  try {
+    const res = await giftsApi.create({
+      personId: personId.value,
+      occasionId: data.occasionId,
+      giftIdeaId: uebernehmenIdee.value?.id || null,
+      title: data.title,
+      description: data.description,
+      imageUrl: uebernehmenIdee.value?.imageUrl || null,
+      status: data.status
+    })
+    geschenke.value = [...geschenke.value, res.data]
+    if (uebernehmenIdee.value) {
+      ideen.value = ideen.value.filter(i => i.id !== uebernehmenIdee.value!.id)
+    }
+    success('Idee wurde als Geschenk übernommen')
+  } catch (err) {
+    console.error('Fehler beim Übernehmen:', err)
+    showError('Idee konnte nicht übernommen werden')
   }
-  geschenke.value = [...geschenke.value, newGeschenk]
-  if (uebernehmenIdee.value) {
-    ideen.value = ideen.value.filter(i => i.id !== uebernehmenIdee.value!.id)
-  }
-  success('Idee wurde als Geschenk übernommen')
   showUebernehmenModal.value = false
   uebernehmenIdee.value = null
 }
 
-// --- Delete Geschenk Confirm ---
 const showDeleteGeschenkConfirm = ref(false)
-const deletingGeschenkId = ref<number | null>(null)
+const deletingGeschenkId = ref<string | null>(null)
 
-function openDeleteGeschenk(geschenkId: number) {
-  console.log('[DEBUG] openDeleteGeschenk called', geschenkId)
+function openDeleteGeschenk(geschenkId: string) {
   deletingGeschenkId.value = geschenkId
   showDeleteGeschenkConfirm.value = true
 }
 
-function confirmDeleteGeschenk() {
+async function confirmDeleteGeschenk() {
   if (deletingGeschenkId.value !== null) {
-    geschenke.value = geschenke.value.filter(g => g.id !== deletingGeschenkId.value)
-    success('Geschenk wurde gelöscht')
+    try {
+      await giftsApi.delete(deletingGeschenkId.value)
+      geschenke.value = geschenke.value.filter(g => g.id !== deletingGeschenkId.value)
+      success('Geschenk wurde gelöscht')
+    } catch (err) {
+      console.error('Fehler beim Löschen des Geschenks:', err)
+      showError('Geschenk konnte nicht gelöscht werden')
+    }
   }
   showDeleteGeschenkConfirm.value = false
   deletingGeschenkId.value = null
 }
 
-// --- Status ---
-function updateGeschenkStatus(geschenkId: number, newStatus: Geschenk['status']) {
-  console.log('[DEBUG] updateGeschenkStatus called', geschenkId, newStatus)
-  const now = new Date().toISOString().split('T')[0]
-  geschenke.value = geschenke.value.map(g => {
-    if (g.id !== geschenkId) return g
-    return {
-      ...g,
-      status: newStatus,
-      purchaseDate: newStatus === 'GEKAUFT' ? now : g.purchaseDate,
-      givenDate: newStatus === 'VERSCHENKT' ? now : g.givenDate
-    }
-  })
-  success(`Status auf "${statusLabels[newStatus]}" gesetzt`)
+async function updateGeschenkStatus(geschenkId: string, newStatus: GiftStatus) {
+  try {
+    const res = await giftsApi.updateStatus(geschenkId, newStatus)
+    geschenke.value = geschenke.value.map(g => g.id === geschenkId ? res.data : g)
+    success(`Status auf "${statusLabels[newStatus]}" gesetzt`)
+  } catch (err) {
+    console.error('Fehler beim Status-Update:', err)
+    showError('Status konnte nicht aktualisiert werden')
+  }
 }
 
-// --- Aufgaben ---
-function toggleAufgabe(aufgabe: Aufgabe) {
-  aufgabe.erledigt = !aufgabe.erledigt
+async function toggleAufgabe(aufgabe: Task) {
+  try {
+    const res = await tasksApi.toggle(aufgabe.id)
+    aufgaben.value = aufgaben.value.map(a => a.id === aufgabe.id ? res.data : a)
+  } catch (err) {
+    console.error('Fehler beim Toggle:', err)
+    showError('Aufgabe konnte nicht aktualisiert werden')
+  }
 }
 
-function addAufgabe() {
+async function addAufgabe() {
   if (!neueAufgabe.value.trim()) return
-  aufgaben.value.push({
-    id: nextAufgabeId++,
-    titel: neueAufgabe.value.trim(),
-    erledigt: false
-  })
-  neueAufgabe.value = ''
+  try {
+    const res = await tasksApi.create({
+      personId: personId.value,
+      title: neueAufgabe.value.trim(),
+      isDone: false
+    })
+    aufgaben.value.push(res.data)
+    neueAufgabe.value = ''
+  } catch (err) {
+    console.error('Fehler beim Erstellen der Aufgabe:', err)
+    showError('Aufgabe konnte nicht erstellt werden')
+  }
 }
 
-function deleteAufgabe(aufgabe: Aufgabe) {
-  aufgaben.value = aufgaben.value.filter(a => a.id !== aufgabe.id)
+async function deleteAufgabe(aufgabe: Task) {
+  try {
+    await tasksApi.delete(aufgabe.id)
+    aufgaben.value = aufgaben.value.filter(a => a.id !== aufgabe.id)
+  } catch (err) {
+    console.error('Fehler beim Löschen der Aufgabe:', err)
+    showError('Aufgabe konnte nicht gelöscht werden')
+  }
 }
 
-// --- Computed ---
-const vergangeneGeschenke = computed(() => geschenke.value.filter(g => g.status === 'VERSCHENKT'))
-const geplanteGeschenke = computed(() => geschenke.value.filter(g => g.status !== 'VERSCHENKT'))
+const vergangeneGeschenke = computed(() => geschenke.value.filter(g => g.status === 'GIFTED'))
+const geplanteGeschenke = computed(() => geschenke.value.filter(g => g.status !== 'GIFTED'))
 
-const statusButtons: Geschenk['status'][] = ['GEPLANT', 'GEKAUFT', 'VERSCHENKT']
-const statusLabels: Record<string, string> = { GEPLANT: 'Geplant', GEKAUFT: 'Gekauft', VERSCHENKT: 'Verschenkt' }
+const statusButtons: GiftStatus[] = ['PLANNED', 'BOUGHT', 'GIFTED']
+const statusLabels: Record<string, string> = { PLANNED: 'Geplant', BOUGHT: 'Gekauft', GIFTED: 'Verschenkt' }
 
-onMounted(() => {
-  const id = Number(personId.value)
-  person.value = (mockPersonen.find(p => p.id === id) || mockPersonen[0]) as Person
-  interests.value = [...mockInterests]
-  ideen.value = [...(mockIdeen[id] || [])]
-  geschenke.value = [...(mockGeschenke[id] || [])]
-  aufgaben.value = [...(mockAufgaben[id] || [])]
-  anlaesse.value = [...mockAnlaesse]
-  loading.value = false
+onMounted(async () => {
+  try {
+    const [personRes, ideasRes, giftsRes, tasksRes, occasionsRes, interestsRes] = await Promise.all([
+      personsApi.getById(personId.value),
+      giftIdeasApi.getAll({ personId: personId.value }),
+      giftsApi.getAll({ personId: personId.value }),
+      tasksApi.getAll({ personId: personId.value }),
+      occasionsApi.getAll(),
+      personInterestsApi.getInterestsForPerson(personId.value)
+    ])
+    person.value = personRes.data
+    ideen.value = ideasRes.data || []
+    geschenke.value = giftsRes.data || []
+    aufgaben.value = tasksRes.data || []
+    anlaesse.value = occasionsRes.data || []
+    interests.value = interestsRes.data || []
+  } catch (err) {
+    console.error('Fehler beim Laden der Personendetails:', err)
+    showError('Personendetails konnten nicht geladen werden')
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
@@ -215,9 +253,9 @@ onMounted(() => {
         <div v-if="person">
           <h1 class="text-2xl font-bold text-gray-900">{{ person.name }}</h1>
           <p class="text-sm text-gray-500 mt-0.5">Geburtstag: {{ formattedGeburtstag }}</p>
-          <div v-if="personInterests.length" class="flex flex-wrap gap-2 mt-2">
+          <div v-if="interests.length" class="flex flex-wrap gap-2 mt-2">
             <span
-              v-for="interest in personInterests"
+              v-for="interest in interests"
               :key="interest.id"
               class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full"
             >
@@ -266,9 +304,9 @@ onMounted(() => {
       <!-- Left Column (3/5) -->
       <div class="lg:col-span-3 space-y-6">
         <!-- Notizen -->
-        <div v-if="person.notizen" class="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+        <div v-if="person.notes" class="bg-blue-50 border border-blue-100 rounded-2xl p-5">
           <h3 class="text-sm font-semibold text-blue-900 mb-1">Notizen</h3>
-          <p class="text-sm text-blue-800">{{ person.notizen }}</p>
+          <p class="text-sm text-blue-800">{{ person.notes }}</p>
         </div>
 
         <!-- Vergangene Geschenke -->
@@ -287,12 +325,12 @@ onMounted(() => {
                   </svg>
                 </div>
                 <div>
-                  <p class="font-medium text-gray-900 text-sm">{{ g.titel }}</p>
-                  <p class="text-xs text-gray-500">{{ g.beschreibung }}</p>
-                  <p class="text-xs text-gray-400">Anlass: {{ g.anlassName }}</p>
+                  <p class="font-medium text-gray-900 text-sm">{{ g.title }}</p>
+                  <p class="text-xs text-gray-500">{{ g.description }}</p>
+                  <p class="text-xs text-gray-400">Anlass: {{ getOccasionName(g.occasionId) }}</p>
                 </div>
               </div>
-              <span class="text-xs text-gray-400">{{ g.datum }}</span>
+              <span class="text-xs text-gray-400">{{ g.givenDate }}</span>
             </div>
           </div>
           <p v-else class="text-sm text-gray-400">Noch keine vergangenen Geschenke</p>
@@ -307,7 +345,7 @@ onMounted(() => {
           <div v-if="ideen.length > 0" class="space-y-3">
             <div v-for="idee in ideen" :key="idee.id" class="bg-white border border-gray-200 rounded-xl p-4">
               <div class="flex items-start justify-between mb-2">
-                <h4 class="font-medium text-gray-900 text-sm">{{ idee.titel }}</h4>
+                <h4 class="font-medium text-gray-900 text-sm">{{ idee.title }}</h4>
                 <div class="flex items-center gap-1">
                   <button type="button" @click.stop="openEditIdee(idee)" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                     <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,8 +359,7 @@ onMounted(() => {
                   </button>
                 </div>
               </div>
-              <p v-if="idee.beschreibung" class="text-xs text-gray-500 mb-1">{{ idee.beschreibung }}</p>
-              <p v-if="idee.notizen" class="text-xs text-gray-400 italic mb-1">{{ idee.notizen }}</p>
+              <p v-if="idee.description" class="text-xs text-gray-500 mb-1">{{ idee.description }}</p>
               <a v-if="idee.link" :href="idee.link" target="_blank" @click.stop class="text-xs text-blue-600 hover:underline">Link öffnen</a>
               <button
                 type="button"
@@ -343,9 +380,9 @@ onMounted(() => {
             <div v-for="g in geplanteGeschenke" :key="g.id" class="bg-white border border-gray-200 rounded-xl p-4">
               <div class="flex items-start justify-between mb-1">
                 <div>
-                  <h4 class="font-medium text-gray-900 text-sm">{{ g.titel }}</h4>
-                  <p v-if="g.beschreibung" class="text-xs text-gray-500">{{ g.beschreibung }}</p>
-                  <p class="text-xs text-gray-400">Anlass: {{ g.anlassName }}</p>
+                  <h4 class="font-medium text-gray-900 text-sm">{{ g.title }}</h4>
+                  <p v-if="g.description" class="text-xs text-gray-500">{{ g.description }}</p>
+                  <p class="text-xs text-gray-400">Anlass: {{ getOccasionName(g.occasionId) }}</p>
                 </div>
                 <button type="button" @click.stop="openDeleteGeschenk(g.id)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                   <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -363,7 +400,7 @@ onMounted(() => {
                   :class="[
                     'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
                     g.status === s
-                      ? (s === 'GEPLANT' ? 'bg-blue-600 text-white' : s === 'GEKAUFT' ? 'bg-emerald-600 text-white' : 'bg-purple-600 text-white')
+                      ? (s === 'PLANNED' ? 'bg-blue-600 text-white' : s === 'BOUGHT' ? 'bg-emerald-600 text-white' : 'bg-purple-600 text-white')
                       : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                   ]"
                 >
@@ -387,12 +424,12 @@ onMounted(() => {
               <label class="flex items-center gap-3 cursor-pointer flex-1">
                 <input
                   type="checkbox"
-                  :checked="aufgabe.erledigt"
+                  :checked="aufgabe.isDone"
                   @change="toggleAufgabe(aufgabe)"
                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span :class="['text-sm', aufgabe.erledigt ? 'text-gray-400 line-through' : 'text-gray-800']">
-                  {{ aufgabe.titel }}
+                <span :class="['text-sm', aufgabe.isDone ? 'text-gray-400 line-through' : 'text-gray-800']">
+                  {{ aufgabe.title }}
                 </span>
               </label>
               <button @click="deleteAufgabe(aufgabe)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">

@@ -1,4 +1,3 @@
-<!-- src/components/PersonModal.vue -->
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { PersonStatus } from '@/types'
@@ -12,16 +11,17 @@ const emit = defineEmits(['save', 'cancel'])
 
 const form = ref({
   name: '',
-  geburtstag: '',
+  birthday: '',
   interessen: '',
-  notizen: '',
-  status: 'AKTIV' as PersonStatus
+  notes: '',
+  status: 'NONE' as PersonStatus
 })
 
 const statusOptions: { value: PersonStatus; label: string }[] = [
-  { value: 'AKTIV', label: 'Aktiv' },
-  { value: 'ARCHIVIERT', label: 'Archiviert' },
-  { value: 'INAKTIV', label: 'Inaktiv' }
+  { value: 'NONE', label: 'Keine' },
+  { value: 'IDEAS', label: 'Ideen' },
+  { value: 'PLANNED', label: 'Geplant' },
+  { value: 'COMPLETED', label: 'Abgeschlossen' }
 ]
 
 const isEdit = computed(() => props.person !== null)
@@ -32,26 +32,26 @@ watch(() => props.show, (newVal) => {
   if (newVal && props.person) {
     form.value = {
       name: props.person.name || '',
-      geburtstag: props.person.geburtstag || '',
+      birthday: props.person.birthday || '',
       interessen: props.person.interessen || '',
-      notizen: props.person.notizen || '',
-      status: props.person.status || 'AKTIV'
+      notes: props.person.notes || '',
+      status: props.person.status || 'NONE'
     }
   } else if (newVal) {
-    form.value = { name: '', geburtstag: '', interessen: '', notizen: '', status: 'AKTIV' }
+    form.value = { name: '', birthday: '', interessen: '', notes: '', status: 'NONE' }
   }
 })
 
 const isValid = computed(() => {
-  return form.value.name.trim() !== '' && form.value.geburtstag !== ''
+  return form.value.name.trim() !== ''
 })
 
 function handleSubmit() {
   if (!isValid.value) return
   const data = {
     name: form.value.name,
-    geburtstag: form.value.geburtstag,
-    notizen: form.value.notizen,
+    birthday: form.value.birthday || null,
+    notes: form.value.notes || null,
     status: form.value.status,
     interessen: form.value.interessen
       .split(',')
@@ -69,7 +69,6 @@ function handleSubmit() {
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="emit('cancel')" />
 
         <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 transform transition-all">
-          <!-- Header -->
           <div class="flex items-center justify-between p-6 pb-4">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -89,10 +88,8 @@ function handleSubmit() {
             </button>
           </div>
 
-          <!-- Form -->
           <form @submit.prevent="handleSubmit" class="px-6 pb-6">
             <div class="space-y-4">
-              <!-- Name -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">
                   Name <span class="text-red-500">*</span>
@@ -106,23 +103,20 @@ function handleSubmit() {
                 />
               </div>
 
-              <!-- Geburtstag -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                  Geburtstag <span class="text-red-500">*</span>
+                  Geburtstag
                 </label>
                 <div class="relative">
                   <input
-                    v-model="form.geburtstag"
+                    v-model="form.birthday"
                     type="date"
                     placeholder="tt.mm.jjjj"
                     class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                    required
                   />
                 </div>
               </div>
 
-              <!-- Status -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
                 <select
@@ -135,7 +129,6 @@ function handleSubmit() {
                 </select>
               </div>
 
-              <!-- Interessen -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">
                   Interessen (kommagetrennt)
@@ -148,11 +141,10 @@ function handleSubmit() {
                 />
               </div>
 
-              <!-- Notizen -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Notizen</label>
                 <textarea
-                  v-model="form.notizen"
+                  v-model="form.notes"
                   rows="3"
                   placeholder="Weitere Informationen zur Person..."
                   class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none placeholder:text-gray-400"
@@ -160,7 +152,6 @@ function handleSubmit() {
               </div>
             </div>
 
-            <!-- Actions -->
             <div class="flex justify-end gap-3 mt-6">
               <button
                 type="button"

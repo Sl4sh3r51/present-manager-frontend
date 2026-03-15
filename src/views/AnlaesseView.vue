@@ -1,37 +1,41 @@
-<!-- src/views/AnlaesseView.vue -->
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { mockAnlaesse } from '@/services/mockData'
+import { occasionsApi } from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import type { Anlass, OccasionType } from '@/types'
+import type { Occasion, OccasionType } from '@/types'
 import AnlassModal from '@/components/AnlassModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
-const { success } = useToast()
+const { success, error: showError } = useToast()
 
-let nextId = 100
-
-const anlaesse = ref<Anlass[]>([])
+const anlaesse = ref<Occasion[]>([])
 const loading = ref(true)
 
 // Modal State
 const showAnlassModal = ref(false)
-const editingAnlass = ref<Anlass | null>(null)
+const editingAnlass = ref<Occasion | null>(null)
 
 // Delete Dialog
 const showDeleteDialog = ref(false)
-const deletingAnlass = ref<Anlass | null>(null)
+const deletingAnlass = ref<Occasion | null>(null)
 
-const festeAnlaesse = computed(() => anlaesse.value.filter(a => a.type === 'FEST'))
-const benutzerdefinierteAnlaesse = computed(() => anlaesse.value.filter(a => a.type === 'BENUTZERDEFINIERT'))
+const festeAnlaesse = computed(() => anlaesse.value.filter(a => a.type === 'FIXED'))
+const benutzerdefinierteAnlaesse = computed(() => anlaesse.value.filter(a => a.type === 'CUSTOM'))
 
 const totalCount = computed(() => anlaesse.value.length)
 const festCount = computed(() => festeAnlaesse.value.length)
 const customCount = computed(() => benutzerdefinierteAnlaesse.value.length)
 
-onMounted(() => {
-  anlaesse.value = [...mockAnlaesse]
-  loading.value = false
+onMounted(async () => {
+  try {
+    const occasionsRes = await occasionsApi.getAll()
+    anlaesse.value = occasionsRes.data || []
+  } catch (err) {
+    console.error('Fehler beim Laden der Anlässe:', err)
+    showError('Anlässe konnten nicht geladen werden')
+  } finally {
+    loading.value = false
+  }
 })
 
 function openCreateModal() {
@@ -39,38 +43,56 @@ function openCreateModal() {
   showAnlassModal.value = true
 }
 
-function openEditModal(anlass: Anlass) {
+function openEditModal(anlass: Occasion) {
   editingAnlass.value = anlass
   showAnlassModal.value = true
 }
 
-function openDeleteDialog(anlass: Anlass) {
+function openDeleteDialog(anlass: Occasion) {
   deletingAnlass.value = anlass
   showDeleteDialog.value = true
 }
 
-function handleSaveAnlass(data: Partial<Anlass>) {
-  if (editingAnlass.value) {
-    Object.assign(editingAnlass.value, data)
-    success('Anlass wurde aktualisiert')
-  } else {
-    const newAnlass: Anlass = {
-      id: nextId++,
-      name: data.name || '',
-      type: (data.type || 'BENUTZERDEFINIERT') as OccasionType,
-      recurring: data.recurring || false,
-      fixedMonth: data.fixedMonth,
-      fixedDay: data.fixedDay
+async function handleSaveAnlass(data: Partial<Occasion>) {
+  try {
+    if (editingAnlass.value) {
+      const res = await occasionsApi.update(editingAnlass.value.id, {
+        name: data.name || editingAnlass.value.name,
+        type: (data.type || editingAnlass.value.type) as OccasionType,
+        isRecurring: data.isRecurring ?? editingAnlass.value.isRecurring,
+        fixedMonth: data.fixedMonth ?? null,
+        fixedDay: data.fixedDay ?? null
+      })
+      anlaesse.value = anlaesse.value.map(a => a.id === editingAnlass.value!.id ? res.data : a)
+      success('Anlass wurde aktualisiert')
+    } else {
+      const res = await occasionsApi.create({
+        name: data.name || '',
+        type: 'CUSTOM',
+        isRecurring: data.isRecurring || false,
+        fixedMonth: data.fixedMonth ?? null,
+        fixedDay: data.fixedDay ?? null
+      })
+      anlaesse.value.push(res.data)
+      success('Anlass wurde erstellt')
     }
-    anlaesse.value.push(newAnlass)
-    success('Anlass wurde erstellt')
+  } catch (err) {
+    console.error('Fehler beim Speichern:', err)
+    showError('Anlass konnte nicht gespeichert werden')
   }
   showAnlassModal.value = false
 }
 
-function handleDeleteAnlass() {
-  anlaesse.value = anlaesse.value.filter(a => a.id !== deletingAnlass.value!.id)
-  success(`"${deletingAnlass.value!.name}" wurde gelöscht`)
+async function handleDeleteAnlass() {
+  if (!deletingAnlass.value) return
+  try {
+    await occasionsApi.delete(deletingAnlass.value.id)
+    anlaesse.value = anlaesse.value.filter(a => a.id !== deletingAnlass.value!.id)
+    success(`"${deletingAnlass.value.name}" wurde gelöscht`)
+  } catch (err) {
+    console.error('Fehler beim Löschen:', err)
+    showError('Anlass konnte nicht gelöscht werden')
+  }
   showDeleteDialog.value = false
 }
 </script>

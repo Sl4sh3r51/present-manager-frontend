@@ -1,25 +1,57 @@
-<!-- src/views/UebersichtView.vue -->
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { mockPersonen } from '@/services/mockData'
-import type { Person } from '@/types'
+import { personsApi, giftsApi, occasionsApi } from '@/services/api'
+import { useToast } from '@/composables/useToast'
+import type { Person, Gift, Occasion } from '@/types'
+
+const { error: showError } = useToast()
 
 const loading = ref(true)
-const uebersicht = ref<Person[]>([])
+const persons = ref<Person[]>([])
+const gifts = ref<Gift[]>([])
+const occasions = ref<Occasion[]>([])
 
-const stats = computed(() => ({
-  personenGesamt: uebersicht.value.length,
-  ideen: uebersicht.value.filter(p => p.hatIdeen).length,
-  geplant: uebersicht.value.filter(p => p.geschenke?.some(g => g.status === 'GEPLANT')).length,
-  gekauft: uebersicht.value.filter(p => p.geschenke?.some(g => g.status === 'GEKAUFT')).length
-}))
-
-onMounted(() => {
-  uebersicht.value = [...mockPersonen] as Person[]
-  loading.value = false
+const giftsMap = computed(() => {
+  const map: Record<string, Gift[]> = {}
+  for (const gift of gifts.value) {
+    if (!map[gift.personId]) map[gift.personId] = []
+    map[gift.personId]!.push(gift)
+  }
+  return map
 })
 
-function formattedDate(date: string) {
+function getOccasionName(occasionId: string | null): string {
+  if (!occasionId) return '-'
+  const occasion = occasions.value.find(o => o.id === occasionId)
+  return occasion?.name || '-'
+}
+
+const stats = computed(() => ({
+  personenGesamt: persons.value.length,
+  ideen: 0,
+  geplant: gifts.value.filter(g => g.status === 'PLANNED').length,
+  gekauft: gifts.value.filter(g => g.status === 'BOUGHT').length
+}))
+
+onMounted(async () => {
+  try {
+    const [personsRes, giftsRes, occasionsRes] = await Promise.all([
+      personsApi.getAll(),
+      giftsApi.getAll(),
+      occasionsApi.getAll()
+    ])
+    persons.value = personsRes.data || []
+    gifts.value = giftsRes.data || []
+    occasions.value = occasionsRes.data || []
+  } catch (err) {
+    console.error('Fehler beim Laden der Übersicht:', err)
+    showError('Daten konnten nicht geladen werden')
+  } finally {
+    loading.value = false
+  }
+})
+
+function formattedDate(date: string | null) {
   if (!date) return '-'
   return new Date(date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
@@ -30,12 +62,11 @@ function drucken() {
 
 const statusBadge = (status: string) => {
   const map: Record<string, { text: string; class: string; icon: string }> = {
-    IDEE: { text: 'Idee', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: '' },
-    GEPLANT: { text: 'Geplant', class: 'bg-blue-50 text-blue-700 border-blue-200', icon: '' },
-    GEKAUFT: { text: 'Gekauft', class: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: '' },
-    VERSCHENKT: { text: 'Verschenkt', class: 'bg-gray-50 text-gray-600 border-gray-200', icon: '' }
+    PLANNED: { text: 'Geplant', class: 'bg-blue-50 text-blue-700 border-blue-200', icon: '' },
+    BOUGHT: { text: 'Gekauft', class: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: '' },
+    GIFTED: { text: 'Verschenkt', class: 'bg-gray-50 text-gray-600 border-gray-200', icon: '' }
   }
-  return map[status] || { text: 'Keine Ideen', class: 'bg-gray-50 text-gray-400 border-gray-200', icon: '' }
+  return map[status] || { text: status, class: 'bg-gray-50 text-gray-400 border-gray-200', icon: '' }
 }
 
 const avatarColor = (name: string) => {
@@ -84,15 +115,15 @@ const initial = (name: string) => name?.charAt(0).toUpperCase() || '?'
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <template v-for="person in uebersicht" :key="person.id">
-              <!-- If person has gifts/ideas -->
-              <template v-if="person.geschenke?.length > 0">
+            <template v-for="person in persons" :key="person.id">
+              <!-- If person has gifts -->
+              <template v-if="(giftsMap[person.id] ?? []).length > 0">
                 <tr
-                  v-for="(geschenk, idx) in person.geschenke"
-                  :key="geschenk.id"
+                  v-for="(gift, idx) in (giftsMap[person.id] ?? [])"
+                  :key="gift.id"
                   class="hover:bg-gray-50 transition-colors"
                 >
-                  <td v-if="idx === 0" :rowspan="person.geschenke.length" class="px-6 py-4">
+                  <td v-if="idx === 0" :rowspan="(giftsMap[person.id] ?? []).length" class="px-6 py-4">
                     <div class="flex items-center gap-3">
                       <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold', avatarColor(person.name)]">
                         {{ initial(person.name) }}
@@ -100,19 +131,19 @@ const initial = (name: string) => name?.charAt(0).toUpperCase() || '?'
                       <span class="text-sm font-medium text-gray-900">{{ person.name }}</span>
                     </div>
                   </td>
-                  <td v-if="idx === 0" :rowspan="person.geschenke.length" class="px-6 py-4 text-sm text-gray-600">
-                    {{ formattedDate(person.geburtstag) }}
+                  <td v-if="idx === 0" :rowspan="(giftsMap[person.id] ?? []).length" class="px-6 py-4 text-sm text-gray-600">
+                    {{ formattedDate(person.birthday) }}
                   </td>
-                  <td class="px-6 py-4 text-sm text-gray-600">{{ geschenk.anlassName || '-' }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-600">{{ getOccasionName(gift.occasionId) }}</td>
                   <td class="px-6 py-4">
                     <div>
-                      <p class="text-sm font-medium text-gray-900">{{ geschenk.titel }}</p>
-                      <p v-if="geschenk.beschreibung" class="text-xs text-gray-500">{{ geschenk.beschreibung }}</p>
+                      <p class="text-sm font-medium text-gray-900">{{ gift.title }}</p>
+                      <p v-if="gift.description" class="text-xs text-gray-500">{{ gift.description }}</p>
                     </div>
                   </td>
                   <td class="px-6 py-4">
-                    <span :class="['text-xs font-medium px-2.5 py-1 rounded-full border', statusBadge(geschenk.status).class]">
-                      {{ statusBadge(geschenk.status).text }}
+                    <span :class="['text-xs font-medium px-2.5 py-1 rounded-full border', statusBadge(gift.status).class]">
+                      {{ statusBadge(gift.status).text }}
                     </span>
                   </td>
                 </tr>
@@ -127,7 +158,7 @@ const initial = (name: string) => name?.charAt(0).toUpperCase() || '?'
                     <span class="text-sm font-medium text-gray-900">{{ person.name }}</span>
                   </div>
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-600">{{ formattedDate(person.geburtstag) }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ formattedDate(person.birthday) }}</td>
                 <td class="px-6 py-4 text-sm text-gray-400">-</td>
                 <td class="px-6 py-4 text-sm text-gray-400">Keine Geschenke geplant</td>
                 <td class="px-6 py-4">
