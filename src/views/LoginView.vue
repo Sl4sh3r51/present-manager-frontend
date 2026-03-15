@@ -87,8 +87,10 @@ async function handleSubmit() {
             {{ submitting ? 'Bitte warten...' : 'Anmelden' }}
           </button>
         </form>
-
       </div>
+      <p class="text-center text-sm text-gray-500 mt-6">Noch kein Konto?
+        <router-link to="/register" class="text-blue-600 hover:text-blue-700 font-medium">Jetzt registrieren</router-link>
+      </p>
 
       <p class="text-center text-xs text-gray-400 mt-8">Geschenke-Manager v1.0 · ISEF01 Projekt</p>
     </div>

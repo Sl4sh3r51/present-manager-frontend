@@ -118,7 +118,7 @@ async function handleSavePerson(data: Partial<Person> & { interessen?: string[] 
     } else {
       const res = await personsApi.create({
         name: data.name || '',
-        status: 'NONE',
+        status: data.status || 'NONE',
         birthday: data.birthday || null,
         notes: data.notes || null
       })
