@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import type { Occasion } from '@/types'
+import type { Occasion, OccasionType} from '@/types'
 
 const props = defineProps<{
   show: boolean
@@ -14,27 +14,43 @@ const emit = defineEmits<{
 
 const form = ref({
   name: '',
+  type: '' as OccasionType,
   isRecurring: false,
   fixedMonth: null as number | null,
-  fixedDay: null as number | null
+  fixedDay: null as number | null,
 })
 
 const isEdit = computed(() => props.anlass != null)
-const title = computed(() => isEdit.value ? 'Anlass bearbeiten' : 'Neuen Anlass erstellen')
-const submitText = computed(() => isEdit.value ? 'Speichern' : 'Hinzufügen')
+const title = computed(() => (isEdit.value ? 'Anlass bearbeiten' : 'Neuen Anlass erstellen'))
+const submitText = computed(() => (isEdit.value ? 'Speichern' : 'Hinzufügen'))
 
-watch(() => props.show, (newVal) => {
-  if (newVal && props.anlass) {
-    form.value = {
-      name: props.anlass.name || '',
-      isRecurring: props.anlass.isRecurring || false,
-      fixedMonth: props.anlass.fixedMonth ?? null,
-      fixedDay: props.anlass.fixedDay ?? null
+const occasionOptions: { value: OccasionType; label: string }[] = [
+  { value: 'FIXED', label: 'Fest' },
+  { value: 'CUSTOM', label: 'Benutzerdefiniert' },
+]
+
+watch(
+  () => props.show,
+  (newVal) => {
+    if (newVal && props.anlass) {
+      form.value = {
+        name: props.anlass.name || '',
+        type: props.anlass.type || 'CUSTOM',
+        isRecurring: props.anlass.isRecurring || false,
+        fixedMonth: props.anlass.fixedMonth ?? null,
+        fixedDay: props.anlass.fixedDay ?? null,
+      }
+    } else if (newVal) {
+      form.value = {
+        name: '',
+        type: 'CUSTOM',
+        isRecurring: false,
+        fixedMonth: null,
+        fixedDay: null,
+      }
     }
-  } else if (newVal) {
-    form.value = { name: '', isRecurring: false, fixedMonth: null, fixedDay: null }
-  }
-})
+  },
+)
 
 const isValid = computed(() => form.value.name.trim() !== '')
 
@@ -42,10 +58,10 @@ function handleSubmit() {
   if (!isValid.value) return
   emit('save', {
     name: form.value.name.trim(),
-    type: 'CUSTOM',
+    type: form.value.type,
     isRecurring: form.value.isRecurring,
     fixedMonth: form.value.isRecurring ? form.value.fixedMonth : null,
-    fixedDay: form.value.isRecurring ? form.value.fixedDay : null
+    fixedDay: form.value.isRecurring ? form.value.fixedDay : null,
   })
 }
 </script>
@@ -86,6 +102,18 @@ function handleSubmit() {
                 required
                 autofocus
               />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Anlasstyp</label>
+              <select
+                v-model="form.type"
+                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white"
+              >
+                <option v-for="opt in occasionOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
             </div>
 
             <div>

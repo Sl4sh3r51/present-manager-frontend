@@ -68,7 +68,7 @@ async function handleSaveAnlass(data: Partial<Occasion>) {
     } else {
       const res = await occasionsApi.create({
         name: data.name || '',
-        type: 'CUSTOM',
+        type: data.type || 'CUSTOM',
         isRecurring: data.isRecurring || false,
         fixedMonth: data.fixedMonth ?? null,
         fixedDay: data.fixedDay ?? null
