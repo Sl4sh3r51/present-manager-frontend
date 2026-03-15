@@ -22,14 +22,14 @@ const emit = defineEmits(['confirm', 'cancel'])
           <div class="flex justify-end gap-3">
             <button
               @click="emit('cancel')"
-              class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+              class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer"
             >
               {{ cancelText }}
             </button>
             <button
               @click="emit('confirm')"
               :class="[
-                'px-5 py-2.5 text-sm font-medium rounded-xl transition-colors',
+                'px-5 py-2.5 text-sm font-medium rounded-xl transition-colors cursor-pointer',
                 danger
                   ? 'bg-red-500 hover:bg-red-600 text-white'
                   : 'bg-blue-600 hover:bg-blue-700 text-white'

@@ -4,7 +4,8 @@ import type { PersonStatus } from '@/types'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  person: { type: Object, default: null }
+  person: { type: Object, default: null },
+  interests: { type: Array as () => string[], default: () => [] }
 })
 
 const emit = defineEmits(['save', 'cancel'])
@@ -33,7 +34,7 @@ watch(() => props.show, (newVal) => {
     form.value = {
       name: props.person.name || '',
       birthday: props.person.birthday || '',
-      interessen: props.person.interessen || '',
+      interessen: props.interests?.join(', ') || '',
       notes: props.person.notes || '',
       status: props.person.status || 'NONE'
     }
@@ -80,7 +81,7 @@ function handleSubmit() {
             </div>
             <button
               @click="emit('cancel')"
-              class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -156,7 +157,7 @@ function handleSubmit() {
               <button
                 type="button"
                 @click="emit('cancel')"
-                class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer"
               >
                 Abbrechen
               </button>
@@ -166,7 +167,7 @@ function handleSubmit() {
                 :class="[
                   'px-5 py-2.5 text-sm font-medium rounded-xl transition-all',
                   isValid
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 ]"
               >

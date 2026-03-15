@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { personsApi } from '@/services/api'
+import { personsApi, interestsApi, personInterestsApi } from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import type { Person } from '@/types'
 import PersonCard from '@/components/PersonCard.vue'
@@ -20,6 +20,7 @@ const filters = ['Alle']
 // Modal State
 const showPersonModal = ref(false)
 const editingPerson = ref<Person | null>(null)
+const editingPersonInterests = ref<string[]>([])
 
 // Delete Dialog State
 const showDeleteDialog = ref(false)
@@ -52,11 +53,18 @@ onMounted(async () => {
 
 function openCreateModal() {
   editingPerson.value = null
+  editingPersonInterests.value = []
   showPersonModal.value = true
 }
 
-function openEditModal(person: Person) {
+async function openEditModal(person: Person) {
   editingPerson.value = { ...person }
+  try {
+    const res = await personInterestsApi.getInterestsForPerson(person.id)
+    editingPersonInterests.value = (res.data || []).map(i => i.name)
+  } catch {
+    editingPersonInterests.value = []
+  }
   showPersonModal.value = true
 }
 
@@ -65,7 +73,34 @@ function openDeleteDialog(person: Person) {
   showDeleteDialog.value = true
 }
 
-async function handleSavePerson(data: Partial<Person>) {
+async function resolveInterestIds(names: string[]): Promise<string[]> {
+  const ids: string[] = []
+  for (const name of names) {
+    try {
+      const searchRes = await interestsApi.search(name)
+      if (searchRes.data?.id) {
+        ids.push(searchRes.data.id)
+        continue
+      }
+    } catch {
+      // Not found — create below
+    }
+    const createRes = await interestsApi.create({ name })
+    ids.push(createRes.data.id)
+  }
+  return ids
+}
+
+async function savePersonInterests(personId: string, interessen: string[] | undefined) {
+  if (!interessen || interessen.length === 0) {
+    await personInterestsApi.replaceAll(personId, [])
+    return
+  }
+  const interestIds = await resolveInterestIds(interessen)
+  await personInterestsApi.replaceAll(personId, interestIds)
+}
+
+async function handleSavePerson(data: Partial<Person> & { interessen?: string[] }) {
   try {
     if (editingPerson.value) {
       const res = await personsApi.update(editingPerson.value.id, {
@@ -78,6 +113,7 @@ async function handleSavePerson(data: Partial<Person>) {
       if (index !== -1) {
         personen.value[index] = res.data
       }
+      await savePersonInterests(editingPerson.value.id, data.interessen)
       success('Person wurde aktualisiert')
     } else {
       const res = await personsApi.create({
@@ -86,7 +122,10 @@ async function handleSavePerson(data: Partial<Person>) {
         birthday: data.birthday || null,
         notes: data.notes || null
       })
-      if (res.data) personen.value.push(res.data)
+      if (res.data) {
+        personen.value.push(res.data)
+        await savePersonInterests(res.data.id, data.interessen)
+      }
       success('Person wurde erfolgreich angelegt')
     }
   } catch (err) {
@@ -124,7 +163,7 @@ function navigateToDetail(person: Person) {
       </div>
       <button
         @click="openCreateModal"
-        class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -152,7 +191,7 @@ function navigateToDetail(person: Person) {
           :key="f"
           @click="activeFilter = f"
           :class="[
-            'px-4 py-2 text-sm font-medium rounded-lg transition-all',
+            'px-4 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer',
             activeFilter === f
               ? 'bg-white text-gray-900 shadow-sm'
               : 'text-gray-600 hover:text-gray-800'
@@ -177,7 +216,7 @@ function navigateToDetail(person: Person) {
       </div>
       <h3 class="text-lg font-semibold text-gray-900 mb-1">Keine Personen gefunden</h3>
       <p class="text-sm text-gray-500 mb-4">Lege eine neue Person an, um loszulegen.</p>
-      <button @click="openCreateModal" class="text-sm text-blue-600 font-medium hover:text-blue-700">
+      <button @click="openCreateModal" class="text-sm text-blue-600 font-medium hover:text-blue-700 cursor-pointer">
         + Person hinzufügen
       </button>
     </div>
@@ -199,6 +238,7 @@ function navigateToDetail(person: Person) {
   <PersonModal
     :show="showPersonModal"
     :person="editingPerson ?? undefined"
+    :interests="editingPersonInterests"
     @save="handleSavePerson"
     @cancel="showPersonModal = false"
   />

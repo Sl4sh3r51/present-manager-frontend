@@ -123,11 +123,17 @@ async function handleUebernehmen(data: { title: string; description: string | nu
       giftIdeaId: uebernehmenIdee.value?.id || null,
       title: data.title,
       description: data.description,
+      link: uebernehmenIdee.value?.link || null,
       imageUrl: uebernehmenIdee.value?.imageUrl || null,
       status: data.status
     })
     geschenke.value = [...geschenke.value, res.data]
     if (uebernehmenIdee.value) {
+      try {
+        await giftIdeasApi.delete(uebernehmenIdee.value.id)
+      } catch (err) {
+        console.error('Geschenkidee konnte nicht gelöscht werden:', err)
+      }
       ideen.value = ideen.value.filter(i => i.id !== uebernehmenIdee.value!.id)
     }
     success('Idee wurde als Geschenk übernommen')
@@ -245,7 +251,7 @@ onMounted(async () => {
     <!-- Header -->
     <div class="flex items-start justify-between mb-8">
       <div class="flex items-start gap-4">
-        <button @click="router.push('/personen')" class="mt-1 p-2 hover:bg-gray-100 rounded-xl transition-colors">
+        <button @click="router.push('/personen')" class="mt-1 p-2 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer">
           <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
@@ -272,24 +278,12 @@ onMounted(async () => {
         <button
           type="button"
           @click.stop="openAddIdee"
-          class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors"
+          class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
           Idee hinzufügen
-        </button>
-        <button class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-medium rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          KI-Ideen
-        </button>
-        <button class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white text-sm font-medium rounded-xl hover:bg-emerald-600 transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-          </svg>
-          Teilen
         </button>
       </div>
     </div>
@@ -347,12 +341,12 @@ onMounted(async () => {
               <div class="flex items-start justify-between mb-2">
                 <h4 class="font-medium text-gray-900 text-sm">{{ idee.title }}</h4>
                 <div class="flex items-center gap-1">
-                  <button type="button" @click.stop="openEditIdee(idee)" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button type="button" @click.stop="openEditIdee(idee)" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
                     <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </button>
-                  <button type="button" @click.stop="openDeleteIdee(idee)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                  <button type="button" @click.stop="openDeleteIdee(idee)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
                     <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
@@ -364,7 +358,7 @@ onMounted(async () => {
               <button
                 type="button"
                 @click.stop="openUebernehmen(idee)"
-                class="w-full mt-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
+                class="w-full mt-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors cursor-pointer"
               >
                 Als Geschenk übernehmen
               </button>
@@ -384,7 +378,7 @@ onMounted(async () => {
                   <p v-if="g.description" class="text-xs text-gray-500">{{ g.description }}</p>
                   <p class="text-xs text-gray-400">Anlass: {{ getOccasionName(g.occasionId) }}</p>
                 </div>
-                <button type="button" @click.stop="openDeleteGeschenk(g.id)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                <button type="button" @click.stop="openDeleteGeschenk(g.id)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
                   <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
@@ -398,7 +392,7 @@ onMounted(async () => {
                   type="button"
                   @click.stop="updateGeschenkStatus(g.id, s)"
                   :class="[
-                    'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
+                    'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer',
                     g.status === s
                       ? (s === 'PLANNED' ? 'bg-blue-600 text-white' : s === 'BOUGHT' ? 'bg-emerald-600 text-white' : 'bg-purple-600 text-white')
                       : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
@@ -432,7 +426,7 @@ onMounted(async () => {
                   {{ aufgabe.title }}
                 </span>
               </label>
-              <button @click="deleteAufgabe(aufgabe)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+              <button @click="deleteAufgabe(aufgabe)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
@@ -450,7 +444,7 @@ onMounted(async () => {
             />
             <button
               @click="addAufgabe"
-              class="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"
+              class="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors cursor-pointer"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
