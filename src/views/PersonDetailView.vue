@@ -377,6 +377,7 @@ onMounted(async () => {
                   <h4 class="font-medium text-gray-900 text-sm">{{ g.title }}</h4>
                   <p v-if="g.description" class="text-xs text-gray-500">{{ g.description }}</p>
                   <p class="text-xs text-gray-400">Anlass: {{ getOccasionName(g.occasionId) }}</p>
+                  <a v-if="g.link" :href="g.link" target="_blank" @click.stop class="text-xs text-blue-600 hover:underline">Link öffnen</a>
                 </div>
                 <button type="button" @click.stop="openDeleteGeschenk(g.id)" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
                   <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">

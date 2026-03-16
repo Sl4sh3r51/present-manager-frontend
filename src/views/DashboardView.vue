@@ -51,12 +51,10 @@ onMounted(async () => {
     const allTasks = tasksRes.data || []
     const openTasks = allTasks.filter((t: Task) => !t.isDone).slice(0, 3)
 
-    const enrichedTasks = await Promise.all(
-      openTasks.map(async (task: Task) => {
-        const personRes = await personsApi.getById(task.personId)
-        return { ...task, personName: personRes.data?.name || 'Unbekannt' }
-      })
-    )
+    const enrichedTasks = openTasks.map((task: Task) => {
+      const person = allPersons.find((p) => p.id === task.personId)
+      return { ...task, personName: person?.name || 'Unbekannt' }
+    })
 
     summary.value = { upcomingBirthdays, giftStats, openTasks: enrichedTasks }
   } catch (err) {
@@ -201,5 +199,4 @@ onMounted(async () => {
       </div>
     </template>
   </div>
-
 </template>
