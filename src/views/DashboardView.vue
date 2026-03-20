@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { personsApi, giftsApi, giftIdeasApi, tasksApi } from '@/services/api'
+import { personsApi, giftsApi, giftIdeasApi, tasksApi, occasionsApi } from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import type { DashboardSummary, Task } from '@/types'
+import type { DashboardSummary, Task, Occasion } from '@/types'
 
 const { error: showError } = useToast()
 
@@ -12,6 +12,27 @@ const summary = ref<DashboardSummary>({
   giftStats: { ideas: 0, planned: 0, bought: 0, gifted: 0 },
   openTasks: []
 })
+
+const monthNames = [
+  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+]
+
+function formatBirthday(birthday: string): { formatted: string; daysText: string } {
+  const birthDate = new Date(birthday)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  const formatted = `${birthDate.getDate()}. ${monthNames[birthDate.getMonth()]}`
+
+  const nextBirthday = new Date(now.getFullYear(), birthDate.getMonth(), birthDate.getDate())
+  if (nextBirthday < today) nextBirthday.setFullYear(now.getFullYear() + 1)
+
+  const diffDays = Math.round((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  const daysText = diffDays === 0 ? '(heute)' : `(in ${diffDays} ${diffDays === 1 ? 'Tag' : 'Tagen'})`
+
+  return { formatted, daysText }
+}
 
 onMounted(async () => {
   try {
@@ -35,16 +56,24 @@ onMounted(async () => {
       return aThisYear.getTime() - bThisYear.getTime()
     })
 
-    const giftsRes = await giftsApi.getAll()
+    const [giftsRes, giftIdeasRes, occasionsRes] = await Promise.all([
+      giftsApi.getAll(),
+      giftIdeasApi.getAll(),
+      occasionsApi.getAll()
+    ])
     const allGifts = giftsRes.data || []
-    const giftIdeasRes = await giftIdeasApi.getAll()
     const allIdeas = giftIdeasRes.data || []
+    const allOccasions: Occasion[] = occasionsRes.data || []
+
+    const xmasOccasion = allOccasions.find(o => o.name.toLowerCase() === 'weihnachten')
+    const xmasGifts = xmasOccasion ? allGifts.filter(g => g.occasionId === xmasOccasion.id) : []
+    const xmasIdeas = xmasOccasion ? allIdeas.filter(i => i.occasionId === xmasOccasion.id) : []
 
     const giftStats = {
-      ideas: allIdeas.length,
-      planned: allGifts.filter(g => g.status === 'PLANNED').length,
-      bought: allGifts.filter(g => g.status === 'BOUGHT').length,
-      gifted: allGifts.filter(g => g.status === 'GIFTED').length
+      ideas: xmasIdeas.length,
+      planned: xmasGifts.filter(g => g.status === 'PLANNED').length,
+      bought: xmasGifts.filter(g => g.status === 'BOUGHT').length,
+      gifted: xmasGifts.filter(g => g.status === 'GIFTED').length
     }
 
     const tasksRes = await tasksApi.getAll()
@@ -106,7 +135,10 @@ onMounted(async () => {
               class="flex items-center justify-between py-2"
             >
               <span class="text-sm text-gray-700">{{ person.name }}</span>
-              <span class="text-xs text-gray-500">{{ person.birthday }}</span>
+              <span class="text-xs text-gray-500">
+                {{ formatBirthday(person.birthday!).formatted }}
+                <span class="text-gray-400">{{ formatBirthday(person.birthday!).daysText }}</span>
+              </span>
             </div>
           </div>
           <p v-else class="text-sm text-gray-400">Keine bevorstehenden Geburtstage</p>
@@ -122,7 +154,7 @@ onMounted(async () => {
             </div>
             <div>
               <h3 class="font-semibold text-gray-900">Weihnachtsstatus</h3>
-              <p class="text-xs text-gray-500">Dezember 2026</p>
+              <p class="text-xs text-gray-500">Geschenke für Weihnachten</p>
             </div>
           </div>
           <div class="space-y-2">
