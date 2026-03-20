@@ -27,6 +27,34 @@ function getOccasionName(occasionId: string | null): string {
   return occasion?.name || '-'
 }
 
+const weihnachtsOccasion = computed(() =>
+  occasions.value.find(o => o.name.toLowerCase() === 'weihnachten')
+)
+
+const weihnachtsGeschenke = computed(() =>
+  weihnachtsOccasion.value
+    ? gifts.value.filter(g => g.occasionId === weihnachtsOccasion.value!.id)
+    : []
+)
+
+const weihnachtsIdeen = computed(() =>
+  weihnachtsOccasion.value
+    ? giftIdeas.value.filter(i => i.occasionId === weihnachtsOccasion.value!.id)
+    : []
+)
+
+const weihnachtsProPerson = computed(() => {
+  const map: Record<string, { personName: string; gifts: Gift[] }> = {}
+  for (const gift of weihnachtsGeschenke.value) {
+    if (!map[gift.personId]) {
+      const person = persons.value.find(p => p.id === gift.personId)
+      map[gift.personId] = { personName: person?.name || 'Unbekannt', gifts: [] }
+    }
+    map[gift.personId]!.gifts.push(gift)
+  }
+  return Object.values(map)
+})
+
 const stats = computed(() => ({
   personenGesamt: persons.value.length,
   ideen: giftIdeas.value.length,
@@ -190,6 +218,63 @@ const initial = (name: string) => name?.charAt(0).toUpperCase() || '?'
         <div class="bg-white border border-gray-200 rounded-xl p-4">
           <p class="text-sm text-gray-500">Gekauft</p>
           <p class="text-2xl font-bold text-gray-900 mt-1">{{ stats.gekauft }}</p>
+        </div>
+      </div>
+
+      <!-- Weihnachtsübersicht -->
+      <div class="mt-8">
+        <div class="flex items-center gap-2 mb-4">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+          </svg>
+          <h2 class="text-lg font-semibold text-gray-900">Weihnachtsübersicht</h2>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div class="bg-white border border-gray-200 rounded-xl p-4">
+            <p class="text-sm text-gray-500">Ideen</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ weihnachtsIdeen.length }}</p>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4">
+            <p class="text-sm text-gray-500">Geplant</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ weihnachtsGeschenke.filter(g => g.status === 'PLANNED').length }}</p>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4">
+            <p class="text-sm text-gray-500">Gekauft / Verschenkt</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ weihnachtsGeschenke.filter(g => g.status === 'BOUGHT' || g.status === 'GIFTED').length }}</p>
+          </div>
+        </div>
+
+        <div v-if="weihnachtsProPerson.length > 0" class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          <div
+            v-for="entry in weihnachtsProPerson"
+            :key="entry.personName"
+            class="border-b border-gray-100 last:border-b-0"
+          >
+            <div
+              v-for="(gift, idx) in entry.gifts"
+              :key="gift.id"
+              class="flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-colors"
+            >
+              <div class="flex items-center gap-3">
+                <div v-if="idx === 0" :class="['w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold', avatarColor(entry.personName)]">
+                  {{ initial(entry.personName) }}
+                </div>
+                <div v-else class="w-8 h-8"></div>
+                <span v-if="idx === 0" class="text-sm font-medium text-gray-900">{{ entry.personName }}</span>
+                <span v-else class="text-sm text-gray-400"></span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-sm text-gray-700">{{ gift.title }}</span>
+                <span :class="['text-xs font-medium px-2.5 py-1 rounded-full border', statusBadge(gift.status).class]">
+                  {{ statusBadge(gift.status).text }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="bg-white border border-gray-200 rounded-2xl p-6">
+          <p class="text-sm text-gray-400">Noch keine Weihnachtsgeschenke geplant</p>
         </div>
       </div>
     </div>
