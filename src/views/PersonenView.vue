@@ -105,7 +105,7 @@ async function handleSavePerson(data: Partial<Person> & { interessen?: string[] 
     if (editingPerson.value) {
       const res = await personsApi.update(editingPerson.value.id, {
         name: data.name || editingPerson.value.name,
-        status: editingPerson.value.status,
+        status: data.status || editingPerson.value.status,
         birthday: data.birthday ?? editingPerson.value.birthday ?? null,
         notes: data.notes ?? editingPerson.value.notes ?? null
       })

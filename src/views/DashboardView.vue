@@ -1,21 +1,44 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { personsApi, giftsApi, giftIdeasApi, tasksApi, occasionsApi } from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import type { DashboardSummary, Task, Occasion } from '@/types'
+import type { DashboardSummary, Task, Occasion, Person } from '@/types'
 
+const router = useRouter()
 const { error: showError } = useToast()
+const allPersons = ref<Person[]>([])
+const showPersonDropdown = ref(false)
+
+function togglePersonDropdown() {
+  showPersonDropdown.value = !showPersonDropdown.value
+}
+
+function navigateToPersonDetail(personId: string) {
+  showPersonDropdown.value = false
+  router.push(`/personen/${personId}`)
+}
 
 const loading = ref(true)
 const summary = ref<DashboardSummary>({
   upcomingBirthdays: [],
   giftStats: { ideas: 0, planned: 0, bought: 0, gifted: 0 },
-  openTasks: []
+  openTasks: [],
 })
 
 const monthNames = [
-  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
 ]
 
 function formatBirthday(birthday: string): { formatted: string; daysText: string } {
@@ -29,7 +52,8 @@ function formatBirthday(birthday: string): { formatted: string; daysText: string
   if (nextBirthday < today) nextBirthday.setFullYear(now.getFullYear() + 1)
 
   const diffDays = Math.round((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  const daysText = diffDays === 0 ? '(heute)' : `(in ${diffDays} ${diffDays === 1 ? 'Tag' : 'Tagen'})`
+  const daysText =
+    diffDays === 0 ? '(heute)' : `(in ${diffDays} ${diffDays === 1 ? 'Tag' : 'Tagen'})`
 
   return { formatted, daysText }
 }
@@ -37,43 +61,46 @@ function formatBirthday(birthday: string): { formatted: string; daysText: string
 onMounted(async () => {
   try {
     const personsRes = await personsApi.getAll()
-    const allPersons = personsRes.data || []
+    const persons = personsRes.data || []
 
+    allPersons.value = persons
     const now = new Date()
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-    const upcomingBirthdays = allPersons.filter(p => {
-      if (!p.birthday) return false
-      const birthDate = new Date(p.birthday)
-      const thisYear = new Date(now.getFullYear(), birthDate.getMonth(), birthDate.getDate())
-      if (thisYear < now) thisYear.setFullYear(now.getFullYear() + 1)
-      return thisYear >= now && thisYear <= thirtyDaysFromNow
-    }).sort((a, b) => {
-      const aDate = new Date(a.birthday!)
-      const bDate = new Date(b.birthday!)
-      const aThisYear = new Date(now.getFullYear(), aDate.getMonth(), aDate.getDate())
-      const bThisYear = new Date(now.getFullYear(), bDate.getMonth(), bDate.getDate())
-      return aThisYear.getTime() - bThisYear.getTime()
-    })
+    const upcomingBirthdays = persons
+      .filter((p) => {
+        if (!p.birthday) return false
+        const birthDate = new Date(p.birthday)
+        const thisYear = new Date(now.getFullYear(), birthDate.getMonth(), birthDate.getDate())
+        if (thisYear < now) thisYear.setFullYear(now.getFullYear() + 1)
+        return thisYear >= now && thisYear <= thirtyDaysFromNow
+      })
+      .sort((a, b) => {
+        const aDate = new Date(a.birthday!)
+        const bDate = new Date(b.birthday!)
+        const aThisYear = new Date(now.getFullYear(), aDate.getMonth(), aDate.getDate())
+        const bThisYear = new Date(now.getFullYear(), bDate.getMonth(), bDate.getDate())
+        return aThisYear.getTime() - bThisYear.getTime()
+      })
 
     const [giftsRes, giftIdeasRes, occasionsRes] = await Promise.all([
       giftsApi.getAll(),
       giftIdeasApi.getAll(),
-      occasionsApi.getAll()
+      occasionsApi.getAll(),
     ])
     const allGifts = giftsRes.data || []
     const allIdeas = giftIdeasRes.data || []
     const allOccasions: Occasion[] = occasionsRes.data || []
 
-    const xmasOccasion = allOccasions.find(o => o.name.toLowerCase() === 'weihnachten')
-    const xmasGifts = xmasOccasion ? allGifts.filter(g => g.occasionId === xmasOccasion.id) : []
-    const xmasIdeas = xmasOccasion ? allIdeas.filter(i => i.occasionId === xmasOccasion.id) : []
+    const xmasOccasion = allOccasions.find((o) => o.name.toLowerCase() === 'weihnachten')
+    const xmasGifts = xmasOccasion ? allGifts.filter((g) => g.occasionId === xmasOccasion.id) : []
+    const xmasIdeas = xmasOccasion ? allIdeas.filter((i) => i.occasionId === xmasOccasion.id) : []
 
     const giftStats = {
       ideas: xmasIdeas.length,
-      planned: xmasGifts.filter(g => g.status === 'PLANNED').length,
-      bought: xmasGifts.filter(g => g.status === 'BOUGHT').length,
-      gifted: xmasGifts.filter(g => g.status === 'GIFTED').length
+      planned: xmasGifts.filter((g) => g.status === 'PLANNED').length,
+      bought: xmasGifts.filter((g) => g.status === 'BOUGHT').length,
+      gifted: xmasGifts.filter((g) => g.status === 'GIFTED').length,
     }
 
     const tasksRes = await tasksApi.getAll()
@@ -81,7 +108,7 @@ onMounted(async () => {
     const openTasks = allTasks.filter((t: Task) => !t.isDone).slice(0, 3)
 
     const enrichedTasks = openTasks.map((task: Task) => {
-      const person = allPersons.find((p) => p.id === task.personId)
+      const person = persons.find((p) => p.id === task.personId)
       return { ...task, personName: person?.name || 'Unbekannt' }
     })
 
@@ -107,7 +134,9 @@ onMounted(async () => {
 
     <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center py-20">
-      <div class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+      <div
+        class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"
+      ></div>
     </div>
 
     <template v-else>
@@ -117,8 +146,18 @@ onMounted(async () => {
         <div class="bg-white border border-gray-200 rounded-2xl p-6">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <svg
+                class="w-5 h-5 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
               </svg>
             </div>
             <div>
@@ -146,8 +185,18 @@ onMounted(async () => {
         <div class="bg-white border border-gray-200 rounded-2xl p-6">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-              <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+              <svg
+                class="w-5 h-5 text-emerald-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
+                />
               </svg>
             </div>
             <div>
@@ -179,8 +228,18 @@ onMounted(async () => {
         <div class="bg-white border border-gray-200 rounded-2xl p-6">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
-              <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              <svg
+                class="w-5 h-5 text-red-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                />
               </svg>
             </div>
             <div>
@@ -194,7 +253,10 @@ onMounted(async () => {
               :key="task.id"
               class="flex items-start gap-3"
             >
-              <input type="checkbox" class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              <input
+                type="checkbox"
+                class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
               <div>
                 <p class="text-sm text-gray-800">{{ task.title }}</p>
                 <p class="text-xs text-gray-500">{{ task.personName }}</p>
@@ -215,18 +277,83 @@ onMounted(async () => {
             class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-blue-700 text-sm font-medium rounded-xl hover:bg-blue-50 transition-colors"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 4v16m8-8H4"
+              />
             </svg>
             Person hinzufügen
           </router-link>
-          <button
-            class="inline-flex items-center gap-2 px-5 py-2.5 bg-white/15 text-white border border-white/30 text-sm font-medium rounded-xl hover:bg-white/25 transition-colors cursor-pointer"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Geschenkidee hinzufügen
-          </button>
+          <div class="relative">
+            <button
+              @click="togglePersonDropdown"
+              class="inline-flex items-center gap-2 px-5 py-2.5 bg-white/15 text-white border border-white/30 text-sm font-medium rounded-xl hover:bg-white/25 transition-colors cursor-pointer"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Geschenkidee hinzufügen
+              <!-- Chevron dreht sich wenn Dropdown offen ist -->
+              <svg
+                :class="[
+                  'w-3.5 h-3.5 transition-transform duration-200',
+                  showPersonDropdown ? 'rotate-180' : '',
+                ]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            <!-- Dropdown -->
+            <Transition
+              enter-active-class="transition-all duration-150 ease-out"
+              leave-active-class="transition-all duration-100 ease-in"
+              enter-from-class="opacity-0 -translate-y-1 scale-[0.98]"
+              leave-to-class="opacity-0 -translate-y-1 scale-[0.98]"
+            >
+              <div
+                v-if="showPersonDropdown"
+                class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-10"
+              >
+                <!-- Personen-Liste -->
+                <div v-if="allPersons.length > 0" class="max-h-56 overflow-y-auto py-1">
+                  <button
+                    v-for="person in allPersons"
+                    :key="person.id"
+                    @click="navigateToPersonDetail(person.id)"
+                    class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <div
+                      class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center flex-shrink-0"
+                    >
+                      {{ person.name.charAt(0).toUpperCase() }}
+                    </div>
+                    <span class="truncate">{{ person.name }}</span>
+                  </button>
+                </div>
+
+                <!-- Leer-Zustand -->
+                <div v-else class="px-4 py-3 text-sm text-gray-400 text-center">
+                  Keine Person angelegt
+                </div>
+              </div>
+            </Transition>
+          </div>
         </div>
       </div>
     </template>
