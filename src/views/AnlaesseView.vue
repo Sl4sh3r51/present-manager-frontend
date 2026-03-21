@@ -89,9 +89,10 @@ async function handleDeleteAnlass() {
     await occasionsApi.delete(deletingAnlass.value.id)
     anlaesse.value = anlaesse.value.filter(a => a.id !== deletingAnlass.value!.id)
     success(`"${deletingAnlass.value.name}" wurde gelöscht`)
-  } catch (err) {
+  } catch (err: any) {
     console.error('Fehler beim Löschen:', err)
-    showError('Anlass konnte nicht gelöscht werden')
+    const message = err?.response?.data?.message ?? 'Anlass konnte nicht gelöscht werden';
+    showError(message)
   }
   showDeleteDialog.value = false
 }
