@@ -19,6 +19,16 @@ function navigateToPersonDetail(personId: string) {
   router.push(`/personen/${personId}`)
 }
 
+async function handleTaskDone(taskId: string) {
+  try {
+    await tasksApi.markDone(taskId)
+    summary.value.openTasks = summary.value.openTasks.filter((t) => t.id !== taskId)
+  } catch (err) {
+    console.error('Fehler beim Abschließen der Aufgabe:', err)
+    showError('Aufgabe konnte nicht abgeschlossen werden')
+  }
+}
+
 const loading = ref(true)
 const summary = ref<DashboardSummary>({
   upcomingBirthdays: [],
@@ -255,7 +265,8 @@ onMounted(async () => {
             >
               <input
                 type="checkbox"
-                class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                @change="handleTaskDone(task.id)"
+                class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
               <div>
                 <p class="text-sm text-gray-800">{{ task.title }}</p>
