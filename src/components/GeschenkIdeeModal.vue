@@ -17,7 +17,7 @@ const form = ref({
   title: '',
   description: '',
   link: '',
-  imageUrl: '',
+  // imageUrl: '',
   occasionId: '' as string
 })
 
@@ -33,11 +33,11 @@ watch(
         title: newIdee.title,
         description: newIdee.description || '',
         link: newIdee.link || '',
-        imageUrl: newIdee.imageUrl || '',
+        // imageUrl: newIdee.imageUrl || '',
         occasionId: newIdee.occasionId != null ? String(newIdee.occasionId) : ''
       }
     } else if (newShow) {
-      form.value = { title: '', description: '', link: '', imageUrl: '', occasionId: '' }
+      form.value = { title: '', description: '', link: '', occasionId: '' }
     }
   }
 )
@@ -50,7 +50,7 @@ function handleSubmit() {
     title: form.value.title.trim(),
     description: form.value.description.trim() || null,
     link: form.value.link.trim() || null,
-    imageUrl: form.value.imageUrl.trim() || null,
+    //imageUrl: form.value.imageUrl.trim() || null,
     occasionId: form.value.occasionId || null
   })
 }
@@ -114,6 +114,7 @@ function handleSubmit() {
               />
             </div>
 
+            <!--
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1.5">Bild-URL</label>
               <input
@@ -123,7 +124,7 @@ function handleSubmit() {
                 class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400"
               />
             </div>
-
+            -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1.5">Anlass (optional)</label>
               <select
