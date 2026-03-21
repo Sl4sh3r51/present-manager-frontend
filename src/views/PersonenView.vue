@@ -14,8 +14,8 @@ const { success, error: showError } = useToast()
 const personen = ref<Person[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
-const activeFilter = ref('Alle')
-const filters = ['Alle']
+//const activeFilter = ref('Alle')
+//const filters = ['Alle']
 
 // Modal State
 const showPersonModal = ref(false)
@@ -185,6 +185,7 @@ function navigateToDetail(person: Person) {
           class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400"
         />
       </div>
+      <!--
       <div class="flex gap-1 bg-gray-100 rounded-xl p-1">
         <button
           v-for="f in filters"
@@ -200,6 +201,7 @@ function navigateToDetail(person: Person) {
           {{ f }}
         </button>
       </div>
+      -->
     </div>
 
     <!-- Loading -->
